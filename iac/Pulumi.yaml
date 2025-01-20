@@ -1,0 +1,7 @@
+name: mlops
+description: Project to compare different mlops tools.
+runtime: go
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: gcp-go
