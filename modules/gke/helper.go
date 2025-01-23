@@ -17,7 +17,6 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 		Preemptible:  false,
 	}
 
-	// Populate NodePoolConfig from Pulumi config, overriding defaults where applicable
 	nodePool := NodePoolConfig{
 		MachineType:  config.Get(ctx, "gke:nodePoolMachineType"),
 		DiskSizeGb:   config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
@@ -47,7 +46,6 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 		nodePool.Preemptible = defaultNodePool.Preemptible
 	}
 
-	// Populate ClusterConfig with defaults and user-provided configuration
 	clusterConfig := &ClusterConfig{
 		Name:     config.Get(ctx, "gke:name"),
 		Create:   config.GetBool(ctx, "gke:create"),

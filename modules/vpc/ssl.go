@@ -6,7 +6,9 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-// ConfigureSSLCertificate
+// ConfigureSSLCertificate configures the SSL certificate and related resources for a Global Load Balancer (GLB) with HTTPS support.
+// It creates a managed SSL certificate, a URL map for HTTPS traffic, a Target HTTPS Proxy, and a Global Forwarding Rule for HTTPS traffic.
+// It ensures all necessary dependencies for the resources are set, including the SSL certificate and backend service.
 func ConfigureSSLCertificate(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -19,24 +21,26 @@ func ConfigureSSLCertificate(
 
 	gcpGLBManagedSSLCert, err := createManagedSSLCertificate(ctx, resourceNamePrefix, gcpProjectId, domain, gcpDependencies)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Managed SSL Certificate: %w", err)
 	}
 	gcpGLBURLMapHTTPS, err := createLoadbalancerURLMapHTTPS(ctx, resourceNamePrefix, gcpProjectId, gcpBackendService)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Load Balancer URL Map HTPS: %w", err)
 	}
 	gcpGLBTargetHTTPSProxy, err := createLoadbalancerHTTPSProxy(ctx, resourceNamePrefix, gcpProjectId, gcpGLBURLMapHTTPS, gcpGLBManagedSSLCert)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Load Balancer HTPS Proxy: %w", err)
 	}
-	err = createLoadbalancerHTTPSForwardingRule(ctx, resourceNamePrefix, gcpProjectId, gcpGLBTargetHTTPSProxy, gcpGlobalAddress)
+	err = createLoadBalancerForwardingRule(ctx, resourceNamePrefix, gcpProjectId, gcpGlobalAddress, nil, gcpGLBTargetHTTPSProxy)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Load Balancer HTPS Forwarding rule: %w", err)
 	}
 	return nil
 }
 
-// createManagedSSLCertificate creates Managed SSL Certificate
+// createManagedSSLCertificate creates a Managed SSL Certificate resource for use with the Global Load Balancer.
+// It takes in the domain name and project details, and sets up the SSL certificate for HTTPS traffic handling.
+// This function requires the configuration of dependencies like the backend service to ensure it is correctly created before being used in the load balancer setup.
 func createManagedSSLCertificate(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -60,7 +64,9 @@ func createManagedSSLCertificate(
 	return gcpGLBManagedSSLCert, err
 }
 
-// createLoadbalancerURLMapHTTPS creates URL Map
+// createLoadbalancerURLMapHTTPS creates a URL Map resource for handling HTTPS traffic within a Global Load Balancer setup.
+// The URL Map routes incoming requests to the appropriate backend service based on the URL pattern and the domain specified.
+// This function helps define the routing behavior for SSL/TLS traffic, ensuring secure requests are directed to the correct backend.
 func createLoadbalancerURLMapHTTPS(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -78,7 +84,9 @@ func createLoadbalancerURLMapHTTPS(
 	return gcpGLBURLMapHTTPS, err
 }
 
-// createLoadbalancerHTTPSProxy creates Target HTTPS Proxy
+// createLoadbalancerHTTPSProxy creates a Target HTTPS Proxy resource to handle incoming HTTPS requests.
+// The proxy uses the previously created URL Map and Managed SSL Certificate to process secure traffic.
+// The HTTPS Proxy is essential for directing traffic securely through the Global Load Balancer and to the proper backend service.
 func createLoadbalancerHTTPSProxy(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -97,24 +105,4 @@ func createLoadbalancerHTTPSProxy(
 		},
 	})
 	return gcpGLBTargetHTTPSProxy, err
-}
-
-// createLoadbalancerForwardingRule creates a Global Load Balancer Forwarding Rule for HTTPS Traffic.
-func createLoadbalancerHTTPSForwardingRule(
-	ctx *pulumi.Context,
-	resourceNamePrefix string,
-	gcpProjectId string,
-	gcpGLBTargetHTTPSProxy *compute.TargetHttpsProxy,
-	gcpGlobalAddress *compute.GlobalAddress,
-) error {
-
-	resourceName := fmt.Sprintf("%s-glb-https-fwd-rule", resourceNamePrefix)
-	_, err := compute.NewGlobalForwardingRule(ctx, resourceName, &compute.GlobalForwardingRuleArgs{
-		Project:             pulumi.String(gcpProjectId),
-		Target:              gcpGLBTargetHTTPSProxy.SelfLink,
-		IpAddress:           gcpGlobalAddress.SelfLink,
-		PortRange:           pulumi.String("443"),
-		LoadBalancingScheme: pulumi.String("EXTERNAL"),
-	})
-	return err
 }

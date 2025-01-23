@@ -6,6 +6,8 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
+// CreateVPC Function is function is responsible for the creation of a VPC Network using the createVPCNetwork function.
+// Also, it creates firewall rules for health checks and inbound traffic via the createFirewallRuleHealthChecks and createFirewallInbound functions respectively.
 func CreateVPC(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -14,7 +16,7 @@ func CreateVPC(
 ) (*compute.Network, error) {
 	gcpVPCNetwork, err := createVPCNetwork(ctx, resourceNamePrefix, gcpProjectId, gcpDependencies)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create VPC Network: %w", err)
 	}
 	err = createFirewallRuleHealthChecks(ctx, resourceNamePrefix, gcpProjectId, gcpVPCNetwork.Name)
 	if err != nil {
@@ -27,7 +29,7 @@ func CreateVPC(
 	return gcpVPCNetwork, nil
 }
 
-// createVPCNetwork creates a Google Cloud VPC Network
+// createVPCNetwork creates a VPC Network in Google Cloud.
 func createVPCNetwork(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -45,7 +47,8 @@ func createVPCNetwork(
 	return gcpNetwork, err
 }
 
-// createFirewallRuleHealthChecks creates the Firewall Rules Health Checks (Network Endpoints within Load Balancer)
+// createFirewallRuleHealthChecks creates a firewall rule that allows incoming TCP traffic (ports 80, 8080, 443) for health checks used by services like load balancers.
+// The allowed source ranges are from IP blocks 35.191.0.0/16 and 130.211.0.0/22, which are Google Cloud’s health check sources (https://cloud.google.com/load-balancing/docs/health-check-concepts#ip-ranges).
 func createFirewallRuleHealthChecks(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -76,7 +79,8 @@ func createFirewallRuleHealthChecks(
 	return err
 }
 
-// createFirewallInbound creates the Firewall Rules - Inbound Cluster Access
+// createFirewallInbound creates a firewall rule to allow inbound TCP traffic on ports 80, 8080, and 443,
+// typically used for load balancer communication with applications within the VPC.
 func createFirewallInbound(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -109,6 +113,9 @@ func createFirewallInbound(
 	return err
 }
 
+// CreateVPCSubnet reates a subnetwork (subnet) within the VPC.
+// The subnet is created in a specific region defined by CloudRegion and the network is linked to the VPC network.
+// It enables Private IP Google Access, which allows instances in the subnet to access Google APIs and services over private IPs.
 func CreateVPCSubnet(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,

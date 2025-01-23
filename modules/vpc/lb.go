@@ -7,7 +7,9 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-// CreateGlobalLoadBalancerStaticIP creates the Global Load Balancer Static IP Address
+// CreateLoadBalancerStaticIP creates a static IP address for a Global Load Balancer in GCP.
+// It provisions a new GlobalAddress resource that will be used by the load balancer's forwarding rule.
+// This IP address will be external and IPv4-based, specifically designed for load balancing.
 func CreateLoadBalancerStaticIP(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -32,7 +34,9 @@ func CreateLoadBalancerStaticIP(
 	return gcpGlobalAddress, err
 }
 
-// CreateLoadBalancerBackendService
+// CreateLoadBalancerBackendService sets up the backend service for a Global Load Balancer.
+// It creates a backend service that will handle incoming traffic routed by the load balancer.
+// This function also sets up the health checks used by the backend service.
 func CreateLoadBalancerBackendService(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -42,14 +46,19 @@ func CreateLoadBalancerBackendService(
 
 	gcpGLBTCPHealthCheck, err := createLoadBalancerTCPHealthChecks(ctx, resourceNamePrefix, gcpProjectId, gcpDependencies)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create Load Balancer Health check: %w", err)
 	}
 	gcpBackendService, err := createLoadbalancerBackendService(ctx, resourceNamePrefix, gcpProjectId, gcpGLBTCPHealthCheck)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Load Balancer Backend Service: %w", err)
+	}
 
-	return gcpBackendService, err
+	return gcpBackendService, nil
 }
 
-// createLoadBalancerTCPHealthChecks creates Health Checks (Network Endpoints within Load Balancer)
+// createLoadBalancerTCPHealthChecks creates the TCP health checks that the Global Load Balancer will use
+// to verify the health of backend services. The health checks monitor the health of services
+// through TCP connections on a specified port.
 func createLoadBalancerTCPHealthChecks(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -74,7 +83,9 @@ func createLoadBalancerTCPHealthChecks(
 	return gcpGLBTCPHealthCheck, err
 }
 
-// createLoadbalancerBackendService creates a Load Balancer Backend Service
+// createLoadbalancerBackendService creates a backend service for a Global Load Balancer.
+// The backend service defines the behavior of the load balancer, such as connection draining, health checks, and other settings.
+// It does not directly handle traffic but instead controls how traffic is distributed to backend instances or groups.
 func createLoadbalancerBackendService(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -84,7 +95,7 @@ func createLoadbalancerBackendService(
 
 	var backendServiceBackendArray = compute.BackendServiceBackendArray{}
 
-	resourceName := fmt.Sprintf("%s-glb-bes", resourceNamePrefix)
+	resourceName := fmt.Sprintf("%s-glb-bs", resourceNamePrefix)
 	gcpBackendService, err := compute.NewBackendService(ctx, resourceName, &compute.BackendServiceArgs{
 		Project:     pulumi.String(gcpProjectId),
 		Name:        pulumi.String(fmt.Sprintf("%s-bes", resourceNamePrefix)),
@@ -101,6 +112,9 @@ func createLoadbalancerBackendService(
 	return gcpBackendService, err
 }
 
+// CreateLoadBalancerURLMapHTTP creates a URL map for HTTP traffic for a Global Load Balancer.
+// The URL map is responsible for mapping HTTP requests to the appropriate backend services based on the requested URL, host, and path.
+// It also sets up any necessary routing rules, including redirects and path-based routing.
 func CreateLoadBalancerURLMapHTTP(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -117,22 +131,27 @@ func CreateLoadBalancerURLMapHTTP(
 	if domain == "" {
 		gcpGLBURLMapHTTP, err = createLoadBalancerURLMapHTTPWithNoDomain(ctx, resourceNamePrefix, gcpProjectId, gcpBackendService)
 		if err != nil {
-			return nil
+			return fmt.Errorf("failed to create Load Balancer URL HTTP Map [ No Domain ]: %w", err)
 		}
 	} else {
 		gcpGLBURLMapHTTP, err = createLoadBalancerURLMapHTTPWithDomain(ctx, resourceNamePrefix, gcpProjectId, domain, SSL, gcpBackendService)
 		if err != nil {
-			return nil
+			return fmt.Errorf("failed to create Load Balancer URL HTTP Map [ Domain ]: %w", err)
 		}
 	}
 	gcpGLBTargetHTTPProxy, err := createLoadBalancerHTTPProxy(ctx, resourceNamePrefix, gcpProjectId, gcpGLBURLMapHTTP)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create Load Balancer HTTP Proxy: %w", err)
 	}
-	err = createLoadBalancerHTTPRorwardingRule(ctx, resourceNamePrefix, gcpProjectId, gcpGlobalAddress, gcpGLBTargetHTTPProxy)
-	return err
+	err = createLoadBalancerForwardingRule(ctx, resourceNamePrefix, gcpProjectId, gcpGlobalAddress, gcpGLBTargetHTTPProxy, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create Load Balancer HTTP Forwarding rule: %w", err)
+	}
+	return nil
 }
 
+// createLoadBalancerURLMapHTTPWithNoDomain creates a URL map for HTTP traffic with no domain specified.
+// This URL map is used when no specific domain is provided, and all traffic is forwarded to the default backend service.
 func createLoadBalancerURLMapHTTPWithNoDomain(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -150,6 +169,8 @@ func createLoadBalancerURLMapHTTPWithNoDomain(
 	return gcpGLBURLMapHTTP, err
 }
 
+// createLoadBalancerURLMapHTTPWithDomain creates a URL map for HTTP traffic with a specific domain.
+// The URL map routes traffic based on the provided domain and any additional path-based routing rules.
 func createLoadBalancerURLMapHTTPWithDomain(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -196,7 +217,8 @@ func createLoadBalancerURLMapHTTPWithDomain(
 	return gcpGLBURLMapHTTP, err
 }
 
-// Create Target HTTP Proxy
+// createLoadBalancerHTTPProxy creates a target HTTP proxy for the Global Load Balancer.
+// The HTTP proxy is used to route HTTP requests to the appropriate URL map for further processing.
 func createLoadBalancerHTTPProxy(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -211,24 +233,4 @@ func createLoadBalancerHTTPProxy(
 		UrlMap:  gcpGLBURLMapHTTP.SelfLink,
 	})
 	return gcpGLBTargetHTTPProxy, err
-}
-
-// Create HTTP Global Forwarding Rule
-func createLoadBalancerHTTPRorwardingRule(
-	ctx *pulumi.Context,
-	resourceNamePrefix string,
-	gcpProjectId string,
-	gcpGlobalAddress *compute.GlobalAddress,
-	gcpGLBTargetHTTPProxy *compute.TargetHttpProxy,
-) error {
-
-	resourceName := fmt.Sprintf("%s-glb-http-fwd-rule", resourceNamePrefix)
-	_, err := compute.NewGlobalForwardingRule(ctx, resourceName, &compute.GlobalForwardingRuleArgs{
-		Project:             pulumi.String(gcpProjectId),
-		Target:              gcpGLBTargetHTTPProxy.SelfLink,
-		IpAddress:           gcpGlobalAddress.SelfLink,
-		PortRange:           pulumi.String("80"),
-		LoadBalancingScheme: pulumi.String("EXTERNAL"),
-	})
-	return err
 }

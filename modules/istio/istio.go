@@ -12,6 +12,14 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
+const (
+	IstioBaseChart = "base"
+	IstiodChart    = "istiod"
+)
+
+// InstallIstioHelm installs the Istio Service Mesh using Helm on a Kubernetes cluster.
+// It installs the Istio base components, followed by the Istiod service, and returns the corresponding Helm releases for both.
+// This function manages the setup of Istio in a Kubernetes cluster using Helm charts and dependencies.
 func InstallIstioHelm(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -21,16 +29,18 @@ func InstallIstioHelm(
 ) (*helm.Release, *helm.Release, error) {
 	helmIstioBase, err := createIstioBase(ctx, resourceNamePrefix, cloudRegion, k8sProvider)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to create Istio Service Mesh Base: %w", err)
 	}
 	helmIstioD, err := createIstiod(ctx, resourceNamePrefix, cloudRegion, k8sProvider, helmIstioBase, gcpGKENodePool)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error creating Istio Base: %w", err)
 	}
 	return helmIstioBase, helmIstioD, nil
 }
 
-// createIstioBase installs the Istio Service Mesh Base
+// createIstioBase installs the base components of the Istio Service Mesh using Helm.
+// It pulls the Istio base chart from a public Helm repository and deploys it into the "istio-system" namespace.
+// This function ensures that the fundamental Istio components are installed before other Istio features (like Istiod) can be set up.
 func createIstioBase(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -44,7 +54,7 @@ func createIstioBase(
 		RepositoryOpts: &helm.RepositoryOptsArgs{
 			Repo: pulumi.String("https://istio-release.storage.googleapis.com/charts"),
 		},
-		Chart:           pulumi.String("base"),
+		Chart:           pulumi.String(IstioBaseChart),
 		Namespace:       pulumi.String("istio-system"),
 		CleanupOnFail:   pulumi.Bool(true),
 		CreateNamespace: pulumi.Bool(true),
@@ -56,7 +66,9 @@ func createIstioBase(
 	return helmIstioBase, err
 }
 
-// createIstiod installs the Istio Service Mesh Istiod
+// createIstiod installs the Istiod component of the Istio Service Mesh using Helm.
+// Istiod is the central control plane component of Istio and handles management tasks for Istio proxies and resources.
+// This function deploys Istiod into the "istio-system" namespace and ensures it runs after the Istio base components are installed.
 func createIstiod(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
@@ -72,7 +84,7 @@ func createIstiod(
 		RepositoryOpts: &helm.RepositoryOptsArgs{
 			Repo: pulumi.String("https://istio-release.storage.googleapis.com/charts"),
 		},
-		Chart:           pulumi.String("istiod"),
+		Chart:           pulumi.String(IstiodChart),
 		Namespace:       pulumi.String("istio-system"),
 		CleanupOnFail:   pulumi.Bool(true),
 		CreateNamespace: pulumi.Bool(true),
@@ -81,6 +93,10 @@ func createIstiod(
 	return helmIstioD, err
 }
 
+// CreateIstioIngressGateway installs the Istio Ingress Gateway using Helm on the Kubernetes cluster.
+// The Ingress Gateway provides external access to services within the Istio service mesh.
+// This function configures the Ingress Gateway with specific service annotations for load balancing in a GKE environment,
+// such as enabling Network Endpoint Groups (NEG) and specifying an internal load balancer type.
 func CreateIstioIngressGateway(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
