@@ -3,18 +3,8 @@ package vpc
 import (
 	"fmt"
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
-
-type CloudRegion struct {
-	Id             string
-	Enabled        bool
-	Region         string
-	SubnetIp       string
-	GKECluster     *container.Cluster
-	GKEClusterName string
-}
 
 func CreateVPC(
 	ctx *pulumi.Context,
@@ -48,7 +38,7 @@ func createVPCNetwork(
 	gcpNetwork, err := compute.NewNetwork(ctx, resourceName, &compute.NetworkArgs{
 		Project:               pulumi.String(gcpProjectId),
 		Name:                  pulumi.String(resourceName),
-		Description:           pulumi.String("GKE MLOps - Global VPC Network"),
+		Description:           pulumi.String("Global VPC Network"),
 		AutoCreateSubnetworks: pulumi.Bool(false),
 	}, pulumi.DependsOn(gcpDependencies))
 
@@ -66,7 +56,7 @@ func createFirewallRuleHealthChecks(
 	_, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
 		Project:     pulumi.String(gcpProjectId),
 		Name:        pulumi.String(resourceName),
-		Description: pulumi.String("GKE at Scale - FW - Allow - Ingress - TCP Health Checks"),
+		Description: pulumi.String("FW - Allow - Ingress - TCP Health Checks"),
 		Network:     gcpNetworkName,
 		Allows: compute.FirewallAllowArray{
 			&compute.FirewallAllowArgs{
@@ -97,7 +87,7 @@ func createFirewallInbound(
 	_, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
 		Project:     pulumi.String(gcpProjectId),
 		Name:        pulumi.String(resourceName),
-		Description: pulumi.String("GKE at Scale - FW - Allow - Ingress - Load Balancer to Application"),
+		Description: pulumi.String("FW - Allow - Ingress - Load Balancer to Application"),
 		Network:     gcpNetworkName,
 		Allows: compute.FirewallAllowArray{
 			&compute.FirewallAllowArgs{
@@ -130,7 +120,7 @@ func CreateVPCSubnet(
 	gcpSubnetwork, err := compute.NewSubnetwork(ctx, resourceName, &compute.SubnetworkArgs{
 		Project:               pulumi.String(gcpProjectId),
 		Name:                  pulumi.String(resourceName),
-		Description:           pulumi.String(fmt.Sprintf("GKE at Scale - VPC Subnet - %s", region.Region)),
+		Description:           pulumi.String(fmt.Sprintf("VPC Subnet - %s", region.Region)),
 		IpCidrRange:           pulumi.String(region.SubnetIp),
 		Region:                pulumi.String(region.Region),
 		Network:               gcpNetwork.ID(),

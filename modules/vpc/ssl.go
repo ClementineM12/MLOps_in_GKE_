@@ -49,7 +49,7 @@ func createManagedSSLCertificate(
 	gcpGLBManagedSSLCert, err := compute.NewManagedSslCertificate(ctx, resourceName, &compute.ManagedSslCertificateArgs{
 		Project:     pulumi.String(gcpProjectId),
 		Name:        pulumi.String(resourceName),
-		Description: pulumi.String("GKE at Scale - Global Load Balancer - Managed SSL Certificate"),
+		Description: pulumi.String("Global Load Balancer - Managed SSL Certificate"),
 		Type:        pulumi.String("MANAGED"),
 		Managed: &compute.ManagedSslCertificateManagedArgs{
 			Domains: pulumi.StringArray{
@@ -72,7 +72,7 @@ func createLoadbalancerURLMapHTTPS(
 	gcpGLBURLMapHTTPS, err := compute.NewURLMap(ctx, resourceName, &compute.URLMapArgs{
 		Project:        pulumi.String(gcpProjectId),
 		Name:           pulumi.String(fmt.Sprintf("%s-glb-urlmap-https", resourceNamePrefix)),
-		Description:    pulumi.String("GKE At Scale - Global Load Balancer - HTTPS URL Map"),
+		Description:    pulumi.String("Global Load Balancer - HTTPS URL Map"),
 		DefaultService: gcpBackendService.SelfLink,
 	})
 	return gcpGLBURLMapHTTPS, err

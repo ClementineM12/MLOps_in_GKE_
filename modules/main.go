@@ -77,7 +77,7 @@ func main() {
 		if err != nil {
 			return err
 		}
-		resourceNamePrefix, err = ConfigureResourcePrefix(cfg)
+		resourceNamePrefix, err = ConfigureResourcePrefix(ctx)
 		if err != nil {
 			return err
 		}

@@ -21,11 +21,11 @@ func ConfigureProjectId(
 }
 
 func ConfigureResourcePrefix(
-	cfg *config.Config,
+	ctx *pulumi.Context,
 ) (string, error) {
 
 	// Review Prefix Configuration
-	resourceNamePrefix := cfg.Get("prefix")
+	resourceNamePrefix := config.Get(ctx, "project:prefix")
 	if resourceNamePrefix == "" {
 		return "", errors.New("[ CONFIGURATION ] - No Prefix has been provided; Please set a prefix (3-5 characters long), it is mandatory")
 	} else {
@@ -51,14 +51,3 @@ func ConfigureSSL(
 		return false
 	}
 }
-
-// func RetrieveClusterConfiguration(
-// 	cfg *config.Config,
-// ) error {
-// 	clusterConfig := cfg.Get("cluster")
-// 	yamlFile, err := ioutil.ReadFile(fmt.Sprintf("../k8s/templates/%s.yaml", clusterConfig))
-// 	if err != nil {
-// 		return fmt.Errorf("error reading YAML file: %v", err)
-// 	}
-// 	return nil
-// }

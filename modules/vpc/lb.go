@@ -22,7 +22,7 @@ func CreateLoadBalancerStaticIP(
 		Name:        pulumi.String(resourceName),
 		AddressType: pulumi.String("EXTERNAL"),
 		IpVersion:   pulumi.String("IPV4"),
-		Description: pulumi.String("GKE At Scale - Global Load Balancer - Static IP Address"),
+		Description: pulumi.String("Global Load Balancer - Static IP Address"),
 	}, pulumi.DependsOn(gcpDependencies))
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func createLoadbalancerBackendService(
 	gcpBackendService, err := compute.NewBackendService(ctx, resourceName, &compute.BackendServiceArgs{
 		Project:     pulumi.String(gcpProjectId),
 		Name:        pulumi.String(fmt.Sprintf("%s-bes", resourceNamePrefix)),
-		Description: pulumi.String("GKE At Scale - Global Load Balancer - Backend Service"),
+		Description: pulumi.String("Global Load Balancer - Backend Service"),
 		CdnPolicy: &compute.BackendServiceCdnPolicyArgs{
 			ClientTtl:  pulumi.Int(5),
 			DefaultTtl: pulumi.Int(5),
@@ -144,7 +144,7 @@ func createLoadBalancerURLMapHTTPWithNoDomain(
 	gcpGLBURLMapHTTP, err := compute.NewURLMap(ctx, resourceName, &compute.URLMapArgs{
 		Project:        pulumi.String(gcpProjectId),
 		Name:           pulumi.String(fmt.Sprintf("%s-glb-urlmap-http", resourceNamePrefix)),
-		Description:    pulumi.String("GKE At Scale - Global Load Balancer - HTTP URL Map"),
+		Description:    pulumi.String("Global Load Balancer - HTTP URL Map"),
 		DefaultService: gcpBackendService.SelfLink,
 	})
 	return gcpGLBURLMapHTTP, err
@@ -163,7 +163,7 @@ func createLoadBalancerURLMapHTTPWithDomain(
 	gcpGLBURLMapHTTP, err := compute.NewURLMap(ctx, resourceName, &compute.URLMapArgs{
 		Project:     pulumi.String(gcpProjectId),
 		Name:        pulumi.String(fmt.Sprintf("%s-glb-urlmap-http", resourceNamePrefix)),
-		Description: pulumi.String("GKE At Scale - Global Load Balancer - HTTP URL Map"),
+		Description: pulumi.String("Global Load Balancer - HTTP URL Map"),
 		HostRules: &compute.URLMapHostRuleArray{
 			&compute.URLMapHostRuleArgs{
 				Hosts: pulumi.StringArray{

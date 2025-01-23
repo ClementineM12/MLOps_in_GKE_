@@ -7,26 +7,14 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-type svc struct {
-	resourceNameSuffix string
-	AccountId          string
-	DisplayName        string
-	Members            string
-	Description        string
-	Title              string
-	IAMRoleId          string
-	Permissions        pulumi.StringArray
-	createRole         bool
-}
-
 var SVC = map[string]svc{
 	"AutoNEG": {
 		resourceNameSuffix: "autoneg",
 		AccountId:          "autoneg-system",
-		DisplayName:        "GKE at Scale - AutoNEG Service Account",
+		DisplayName:        "AutoNEG Service Account",
 		Members:            "serviceAccount:autoneg-system@%s.iam.gserviceaccount.com",
 		Description:        "Custom IAM Role - GKE AutoNeg",
-		Title:              "GKE at Scale - AutoNEG",
+		Title:              "AutoNEG",
 		IAMRoleId:          "autoneg_system",
 		Permissions: pulumi.StringArray{
 			pulumi.String("compute.backendServices.get"),
@@ -42,7 +30,7 @@ var SVC = map[string]svc{
 	"Admin": {
 		resourceNameSuffix: "admin",
 		AccountId:          "svc-gke-at-scale-admin",
-		DisplayName:        "GKE at Scale - Admin Service Account",
+		DisplayName:        "Admin Service Account",
 		createRole:         false,
 	},
 }

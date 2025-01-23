@@ -1,4 +1,0 @@
-config:
-  gcp:project: mlops-project-01
-  mlops:prefix: mlops
-  mlops:cluster: management

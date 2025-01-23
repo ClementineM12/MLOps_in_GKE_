@@ -1,0 +1,19 @@
+config:
+  project: gcp-base
+  gke:
+    create: true
+    name: base-cluster
+    nodePool:
+      machineType: e2-medium
+      diskSizeGb: 100
+      diskType: pd-standard
+      minNodeCount: 1
+      maxNodeCount: 3
+      preemptible: false
+    cidr: 0.0.0.0/0
+  istio: 
+    create: true
+  storage: 
+    create: true
+  
+  

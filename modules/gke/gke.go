@@ -23,11 +23,13 @@ func CreateGKE(
 	gcpServiceAccount *serviceaccount.Account,
 ) (*container.NodePool, *kubernetes.Provider, error) {
 
-	gcpGKECluster, err := createGKE(ctx, resourceNamePrefix, gcpProjectId, cloudRegion, gcpNetwork, gcpSubnetwork)
+	config := Configuration(ctx)
+
+	gcpGKECluster, err := createGKE(ctx, config, resourceNamePrefix, gcpProjectId, cloudRegion, gcpNetwork, gcpSubnetwork)
 	if err != nil {
 		return nil, nil, err
 	}
-	gcpGKENodePool, err := createGKENodePool(ctx, resourceNamePrefix, cloudRegion, gcpGKECluster, gcpServiceAccount)
+	gcpGKENodePool, err := createGKENodePool(ctx, config, resourceNamePrefix, cloudRegion, gcpGKECluster, gcpServiceAccount)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -41,6 +43,7 @@ func CreateGKE(
 // createGKE creates a Google Kubernetes Engine Cluster
 func createGKE(
 	ctx *pulumi.Context,
+	config *ClusterConfig,
 	resourceNamePrefix string,
 	gcpProjectId string,
 	cloudRegion *vpc.CloudRegion,
@@ -48,7 +51,7 @@ func createGKE(
 	gcpSubnetwork *compute.Subnetwork,
 ) (*container.Cluster, error) {
 
-	cloudRegion.GKEClusterName = fmt.Sprintf("%s-gke-%s", resourceNamePrefix, cloudRegion.Region)
+	cloudRegion.GKEClusterName = fmt.Sprintf("%s-%s-k8s-%s", resourceNamePrefix, config.Name, cloudRegion.Region)
 	gcpGKECluster, err := container.NewCluster(ctx, cloudRegion.GKEClusterName, &container.ClusterArgs{
 		Project:               pulumi.String(gcpProjectId),
 		Name:                  pulumi.String(cloudRegion.GKEClusterName),
@@ -64,7 +67,7 @@ func createGKE(
 		MasterAuthorizedNetworksConfig: &container.ClusterMasterAuthorizedNetworksConfigArgs{
 			CidrBlocks: &container.ClusterMasterAuthorizedNetworksConfigCidrBlockArray{
 				&container.ClusterMasterAuthorizedNetworksConfigCidrBlockArgs{
-					CidrBlock:   pulumi.String("0.0.0.0/0"),
+					CidrBlock:   pulumi.String(config.Cidr),
 					DisplayName: pulumi.String("Global Public Access"),
 				},
 			},
@@ -80,20 +83,21 @@ func createGKE(
 // createGKENodePool
 func createGKENodePool(
 	ctx *pulumi.Context,
+	config *ClusterConfig,
 	resourceNamePrefix string,
 	cloudRegion *vpc.CloudRegion,
 	gcpGKECluster *container.Cluster,
 	gcpServiceAccount *serviceaccount.Account,
 ) (*container.NodePool, error) {
 
-	resourceName := fmt.Sprintf("%s-gke-%s-np-01", resourceNamePrefix, cloudRegion.Region)
+	resourceName := fmt.Sprintf("%s-%s-k8s-%s-np", resourceNamePrefix, config.Name, cloudRegion.Region)
 	gcpGKENodePool, err := container.NewNodePool(ctx, resourceName, &container.NodePoolArgs{
 		Cluster:   gcpGKECluster.ID(),
 		Name:      pulumi.String(resourceName),
 		NodeCount: pulumi.Int(1),
 		NodeConfig: &container.NodePoolNodeConfigArgs{
-			Preemptible:    pulumi.Bool(false),
-			MachineType:    pulumi.String("e2-medium"),
+			Preemptible:    pulumi.Bool(config.NodePool.Preemptible),
+			MachineType:    pulumi.String(config.NodePool.MachineType),
 			ServiceAccount: gcpServiceAccount.Email,
 			OauthScopes: pulumi.StringArray{
 				pulumi.String("https://www.googleapis.com/auth/cloud-platform"),

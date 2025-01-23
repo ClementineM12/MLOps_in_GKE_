@@ -1,0 +1,19 @@
+config:
+  gcp:project: mlops-project-01
+  
+  project:prefix: mlops
+
+  gke:create: true
+  gke:name: base
+  gke:cidr: 0.0.0.0/0
+
+  gke:nodePoolMachineType: e2-medium
+  gke:nodePoolDiskSizeGb: 100
+  gke:nodePoolDiskType: pd-standard
+  gke:nodePoolMinNodeCount: 1
+  gke:nodePoolMaxNodeCount: 3
+  gke:nodePoolPreemptible: false
+
+  istio:create: true
+  
+  storage:create: true
