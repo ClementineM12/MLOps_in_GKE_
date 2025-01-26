@@ -2,6 +2,7 @@ package vpc
 
 import (
 	"fmt"
+	"mlops/project"
 	"strings"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
@@ -46,8 +47,7 @@ import (
 
 func createLoadBalancerForwardingRule(
 	ctx *pulumi.Context,
-	resourceNamePrefix string,
-	gcpProjectId string,
+	projectConfig project.ProjectConfig,
 	gcpGlobalAddress *compute.GlobalAddress,
 	gcpGLBTargetHTTPProxy *compute.TargetHttpProxy,
 	gcpGLBTargetHTTPSProxy *compute.TargetHttpsProxy,
@@ -69,11 +69,11 @@ func createLoadBalancerForwardingRule(
 		targetHTTPProxySelfLink = gcpGLBTargetHTTPSProxy.SelfLink
 	}
 
-	resourceName := fmt.Sprintf("%s-glb-%s-fwd-rule", resourceNamePrefix, strings.ToLower(protocol))
+	resourceName := fmt.Sprintf("%s-glb-%s-fwd-rule", projectConfig.ResourceNamePrefix, strings.ToLower(protocol))
 
 	// Create the GlobalForwardingRule resource
 	_, err := compute.NewGlobalForwardingRule(ctx, resourceName, &compute.GlobalForwardingRuleArgs{
-		Project:             pulumi.String(gcpProjectId),
+		Project:             pulumi.String(projectConfig.ProjectId),
 		Target:              targetHTTPProxySelfLink,
 		IpAddress:           gcpGlobalAddress.SelfLink,
 		PortRange:           pulumi.String(port),

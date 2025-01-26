@@ -2,7 +2,7 @@ package istio
 
 import (
 	"fmt"
-	"mlops/vpc"
+	"mlops/project"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
@@ -22,11 +22,12 @@ const (
 // This function manages the setup of Istio in a Kubernetes cluster using Helm charts and dependencies.
 func InstallIstioHelm(
 	ctx *pulumi.Context,
-	resourceNamePrefix string,
-	cloudRegion vpc.CloudRegion,
+	projectConfig project.ProjectConfig,
+	cloudRegion project.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpGKENodePool *container.NodePool,
 ) (*helm.Release, *helm.Release, error) {
+	resourceNamePrefix := projectConfig.ResourceNamePrefix
 	helmIstioBase, err := createIstioBase(ctx, resourceNamePrefix, cloudRegion, k8sProvider)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Istio Service Mesh Base: %w", err)
@@ -44,7 +45,7 @@ func InstallIstioHelm(
 func createIstioBase(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
-	cloudRegion vpc.CloudRegion,
+	cloudRegion project.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 ) (*helm.Release, error) {
 
@@ -72,7 +73,7 @@ func createIstioBase(
 func createIstiod(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
-	cloudRegion vpc.CloudRegion,
+	cloudRegion project.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	helmIstioBase *helm.Release,
 	gcpGKENodePool *container.NodePool,
@@ -99,8 +100,8 @@ func createIstiod(
 // such as enabling Network Endpoint Groups (NEG) and specifying an internal load balancer type.
 func CreateIstioIngressGateway(
 	ctx *pulumi.Context,
-	resourceNamePrefix string,
-	cloudRegion vpc.CloudRegion,
+	projectConfig project.ProjectConfig,
+	cloudRegion project.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	helmIstioBase *helm.Release,
 	helmIstioD *helm.Release,
@@ -108,7 +109,7 @@ func CreateIstioIngressGateway(
 	k8sAppNamespace *k8s.Namespace,
 	gcpBackendService *compute.BackendService,
 ) error {
-	resourceName := fmt.Sprintf("%s-istio-igw-%s", resourceNamePrefix, cloudRegion.Region)
+	resourceName := fmt.Sprintf("%s-istio-igw-%s", projectConfig.ResourceNamePrefix, cloudRegion.Region)
 	_, err := helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
 		Name:        pulumi.String("istio-ingressgateway"),
 		Description: pulumi.String("Istio Service Mesh - Install Ingress Gateway"),

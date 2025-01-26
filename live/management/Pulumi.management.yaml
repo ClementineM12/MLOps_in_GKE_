@@ -1,10 +1,20 @@
 config:
-  project: gcp-management
-  clusterName: management-cluster
-  nodePool:
-    machineType: e2-medium
-    diskSizeGb: 100
-    diskType: pd-standard
-    minNodeCount: 1
-    maxNodeCount: 3
-    preemptible: false
+  gcp:project: mlops-management-project
+  
+  project:prefix: mlops
+
+  vpc:regions: "007"
+  
+  gke:name: management
+  gke:cidr: 0.0.0.0/0
+
+  gke:nodePoolMachineType: e2-medium
+  gke:nodePoolDiskSizeGb: 100
+  gke:nodePoolDiskType: pd-standard
+  gke:nodePoolMinNodeCount: 1
+  gke:nodePoolMaxNodeCount: 3
+  gke:nodePoolPreemptible: false
+
+  istio:create: false
+  
+  storage:create: false

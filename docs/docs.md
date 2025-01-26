@@ -1,6 +1,10 @@
 ## Prerequisites
 
 * GCP Account
+* Pulumi Account
+
+> [!NOTE]
+> A nice thing that Google Cloud provides is a [cost calculator](https://cloud.google.com/products/calculator?hl=en), so before beginning building anything on cloud proceed with checking the costs of it.
 
 ## Installation
 
@@ -13,6 +17,8 @@
 ## GCP Project
 
 Create your GCP project ( e.g. mlops-project-01 ) on the console.
+
+It is important to activate the **Cloud Resource Manager API**
 
 ## Service account
 

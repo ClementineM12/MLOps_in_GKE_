@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"mlops/project"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/storage"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -10,19 +11,26 @@ import (
 // SetupObjectStorage creates a GCS bucket and returns the outputs
 func CreateObjectStorage(
 	ctx *pulumi.Context,
-	resourceNamePrefix string,
-) error {
+	projectConfig project.ProjectConfig,
+) {
 
-	resourceName := fmt.Sprintf("%s-data-bucket", resourceNamePrefix)
+	var bucketLocation string
+	if len(projectConfig.EnabledRegions) > 1 {
+		bucketLocation = "EU"
+	} else {
+		bucketLocation = projectConfig.EnabledRegions[0].Region
+	}
+
+	resourceName := fmt.Sprintf("%s-data-bucket", projectConfig.ResourceNamePrefix)
 	// Create a Google Cloud Storage bucket
 	bucket, err := storage.NewBucket(ctx, resourceName, &storage.BucketArgs{
-		Location:                 pulumi.String("EU"),
+		Location:                 pulumi.String(bucketLocation),
 		StorageClass:             pulumi.String("STANDARD"),
 		ForceDestroy:             pulumi.Bool(true),
 		UniformBucketLevelAccess: pulumi.Bool(true),
 	})
 	if err != nil {
-		return err
+		ctx.Log.Error(fmt.Sprintf("Storage creation: %s", err), nil)
 	}
 
 	// Add a bucket IAM policy
@@ -32,9 +40,8 @@ func CreateObjectStorage(
 		Member: pulumi.String("allAuthenticatedUsers"),
 	})
 	if err != nil {
-		return err
+		ctx.Log.Error(fmt.Sprintf("Storage IAM creation: %s", err), nil)
 	}
 
 	ctx.Export("bucketName", bucket.Name)
-	return nil
 }

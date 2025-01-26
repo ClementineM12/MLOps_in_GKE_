@@ -10,10 +10,15 @@ type NodePoolConfig struct {
 	MaxNodeCount int
 }
 
+type ManagementConfig struct {
+	AutoRepair  bool
+	AutoUpgrade bool
+}
+
 // ClusterConfig holds the overall GKE cluster configuration
 type ClusterConfig struct {
-	Name     string
-	NodePool NodePoolConfig
-	Create   bool
-	Cidr     string
+	Name       string
+	NodePool   NodePoolConfig
+	Management ManagementConfig
+	Cidr       string
 }

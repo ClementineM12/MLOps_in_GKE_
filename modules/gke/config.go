@@ -14,7 +14,6 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 		DiskType:     "pd-standard",
 		MinNodeCount: 1,
 		MaxNodeCount: 3,
-		Preemptible:  false,
 	}
 
 	nodePool := NodePoolConfig{
@@ -24,6 +23,11 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 		MinNodeCount: config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
 		MaxNodeCount: config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
 		Preemptible:  config.GetBool(ctx, "gke:nodePoolPreemptible"),
+	}
+
+	management := ManagementConfig{
+		AutoRepair:  config.GetBool(ctx, "gke:managementAutoRepair"),
+		AutoUpgrade: config.GetBool(ctx, "gke:managementAutoUpgrade"),
 	}
 
 	// Apply defaults for any missing values
@@ -42,15 +46,12 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 	if nodePool.MaxNodeCount == 0 {
 		nodePool.MaxNodeCount = defaultNodePool.MaxNodeCount
 	}
-	if !nodePool.Preemptible {
-		nodePool.Preemptible = defaultNodePool.Preemptible
-	}
 
 	clusterConfig := &ClusterConfig{
-		Name:     config.Get(ctx, "gke:name"),
-		Create:   config.GetBool(ctx, "gke:create"),
-		Cidr:     config.Get(ctx, "gke:cidr"),
-		NodePool: nodePool,
+		Name:       config.Get(ctx, "gke:name"),
+		Cidr:       config.Get(ctx, "gke:cidr"),
+		NodePool:   nodePool,
+		Management: management,
 	}
 
 	// Apply defaults for missing cluster-level values
@@ -58,7 +59,7 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 		clusterConfig.Name = "default"
 	}
 	if clusterConfig.Cidr == "" {
-		clusterConfig.Cidr = "0.0.0.0/0"
+		clusterConfig.Cidr = "10.0.0.0/16"
 	}
 
 	return clusterConfig
