@@ -16,7 +16,7 @@ import (
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/iam"
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/projects"
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/serviceaccount"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v3/go/kubernetes/yaml"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
@@ -27,46 +27,29 @@ import (
 func gkeConfigConnectorIAM(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
-) error {
-
-	namespaceName := "config-connector"
+) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	// 1️⃣ Create IAM Service Account
 	serviceAccount, serviceAccountMember, err := createConfigConnectorServiceAccount(ctx, projectConfig)
 	if err != nil {
-		return err
+		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to created Config Connector service account: %s", err)
 	}
 	// 2️⃣ Assign IAM "Editor" Role to the Service Account (adjust if needed)
 	err = createIAMRoleBinding(ctx, projectConfig, serviceAccountMember)
 	if err != nil {
-		return nil
+		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to create IAM role for Config Connector service account: %s", err)
 	}
 	// 3️⃣ Create Workload Identity Pool
 	err = CreateWorkloadIdentityPool(ctx, projectConfig)
 	if err != nil {
-		return err
+		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to created Workload Identity Pool: %s", err)
 	}
 	// 4️⃣ Bind IAM Service Account
 	err = createIAMBinding(ctx, projectConfig, serviceAccount, serviceAccountMember)
 	if err != nil {
-		return err
+		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to bind IAM role to Config Connector service account: %w", err)
 	}
-	// 5️⃣ Create Namespace for Config Connector
-	err = createNamespace(ctx, projectConfig, namespaceName)
-	if err != nil {
-		return err
-	}
-	// 6️⃣ Apply Config Connector Configuration (Cluster Mode)
-	err = applyResource(ctx, projectConfig, serviceAccountMember)
-	if err != nil {
-		return fmt.Errorf("failed to apply Config Connector configuration: %w", err)
-	}
-
-	// ctx.Export("serviceAccountEmail", serviceAccount.Email)
-	// ctx.Export("workloadIdentityPool", identityPool.WorkloadIdentityPoolId)
-	// ctx.Export("workloadIdentityProvider", identityPoolProvider.Name)
-
-	return nil
+	return serviceAccount, serviceAccountMember, nil
 }
 
 // CreateWorkloadIdentityPool creates Google Cloud Workload Identity Pool for GKE
@@ -88,7 +71,7 @@ func CreateWorkloadIdentityPool(
 		WorkloadIdentityPoolId: pulumi.String(fmt.Sprintf("%s-%s", projectConfig.ResourceNamePrefix, randomSuffix)),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create Workload Identity Pool %s: %w", resourceName, err)
+		return err
 	}
 	return nil
 }
@@ -101,15 +84,15 @@ func createConfigConnectorServiceAccount(
 	resourceName := fmt.Sprintf("%s-svc-config-connector", projectConfig.ResourceNamePrefix)
 	// Create the Workload Identity Pool
 	serviceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
-		AccountId:   pulumi.String(resourceName),
+		AccountId:   pulumi.String("svc-config-connector"),
 		DisplayName: pulumi.String("Config Connector IAM Service Account"),
 		Project:     pulumi.String(projectConfig.ProjectId),
 	})
 	if err != nil {
-		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to create IAM service account: %w", err)
+		return nil, pulumi.StringArrayOutput{}, err
 	}
 	serviceAccountMember := serviceAccount.Email.ApplyT(func(email string) []string {
-		return []string{fmt.Sprintf("serviceAccount:%s", email)}
+		return []string{email}
 	}).(pulumi.StringArrayOutput)
 
 	return serviceAccount, serviceAccountMember, nil
@@ -130,7 +113,7 @@ func createIAMRoleBinding(
 		Members: serviceAccountMember,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to assign editor role: %w", err)
+		return err
 	}
 	return nil
 }
@@ -143,18 +126,13 @@ func createIAMBinding(
 ) error {
 	resourceName := fmt.Sprintf("%s-config-connector-sa-iam-binding", projectConfig.ResourceNamePrefix)
 
-	// members := serviceAccount.Email.ApplyT(func(email string) []string {
-	// 	return []string{fmt.Sprintf("serviceAccount:%s", email)}
-	// }).(pulumi.StringArrayOutput)
-
-	// ✅ Pass `members` correctly into IAMBinding
 	_, err := serviceaccount.NewIAMBinding(ctx, resourceName, &serviceaccount.IAMBindingArgs{
 		ServiceAccountId: serviceAccount.Name, // Use Name as reference
 		Role:             pulumi.String("roles/iam.workloadIdentityUser"),
 		Members:          serviceAccountMember,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to bind IAM role to service account: %w", err)
+		return err
 	}
 
 	return nil

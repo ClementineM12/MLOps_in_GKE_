@@ -13,17 +13,17 @@ import (
 func CreateVPC(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
-	gcpDependencies []pulumi.Resource,
+	opts ...pulumi.ResourceOption,
 ) (*compute.Network, error) {
-	gcpVPCNetwork, err := createVPCNetwork(ctx, projectConfig, gcpDependencies)
+	gcpVPCNetwork, err := createVPCNetwork(ctx, projectConfig, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VPC Network: %w", err)
 	}
-	err = createFirewallRuleHealthChecks(ctx, projectConfig, gcpVPCNetwork.Name)
+	err = createFirewallRuleHealthChecks(ctx, projectConfig, gcpVPCNetwork.ID())
 	if err != nil {
 		return nil, err
 	}
-	err = createFirewallInbound(ctx, projectConfig, gcpVPCNetwork.Name)
+	err = createFirewallInbound(ctx, projectConfig, gcpVPCNetwork.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func CreateVPC(
 func createVPCNetwork(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
-	gcpDependencies []pulumi.Resource,
+	opts ...pulumi.ResourceOption,
 ) (*compute.Network, error) {
 
 	resourceName := fmt.Sprintf("%s-vpc", projectConfig.ResourceNamePrefix)
@@ -43,7 +43,7 @@ func createVPCNetwork(
 		Name:                  pulumi.String(resourceName),
 		Description:           pulumi.String("Global VPC Network"),
 		AutoCreateSubnetworks: pulumi.Bool(false),
-	}, pulumi.DependsOn(gcpDependencies))
+	}, opts...)
 
 	return gcpNetwork, err
 }
@@ -53,7 +53,7 @@ func createVPCNetwork(
 func createFirewallRuleHealthChecks(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
-	gcpNetworkName pulumi.StringOutput,
+	gcpNetwork pulumi.StringInput,
 ) error {
 
 	resourceName := fmt.Sprintf("%s-fw-in-allow-health-checks", projectConfig.ResourceNamePrefix)
@@ -61,7 +61,7 @@ func createFirewallRuleHealthChecks(
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Name:        pulumi.String(resourceName),
 		Description: pulumi.String("FW - Allow - Ingress - TCP Health Checks"),
-		Network:     gcpNetworkName,
+		Network:     gcpNetwork,
 		Allows: compute.FirewallAllowArray{
 			&compute.FirewallAllowArgs{
 				Protocol: pulumi.String("tcp"),
@@ -85,7 +85,7 @@ func createFirewallRuleHealthChecks(
 func createFirewallInbound(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
-	gcpNetworkName pulumi.StringOutput,
+	gcpNetwork pulumi.StringInput,
 ) error {
 
 	resourceName := fmt.Sprintf("%s-fw-in-allow-cluster-app", projectConfig.ResourceNamePrefix)
@@ -93,7 +93,7 @@ func createFirewallInbound(
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Name:        pulumi.String(resourceName),
 		Description: pulumi.String("FW - Allow - Ingress - Load Balancer to Application"),
-		Network:     gcpNetworkName,
+		Network:     gcpNetwork,
 		Allows: compute.FirewallAllowArray{
 			&compute.FirewallAllowArgs{
 				Protocol: pulumi.String("tcp"),
@@ -121,7 +121,7 @@ func CreateVPCSubnet(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	region project.CloudRegion,
-	gcpNetwork *compute.Network,
+	gcpNetwork pulumi.StringInput,
 ) (*compute.Subnetwork, error) {
 
 	resourceName := fmt.Sprintf("%s-vpc-subnet-%s", projectConfig.ResourceNamePrefix, region.Region)
@@ -131,7 +131,7 @@ func CreateVPCSubnet(
 		Description:           pulumi.String(fmt.Sprintf("VPC Subnet - %s", region.Region)),
 		IpCidrRange:           pulumi.String(region.SubnetIp),
 		Region:                pulumi.String(region.Region),
-		Network:               gcpNetwork.ID(),
+		Network:               gcpNetwork,
 		PrivateIpGoogleAccess: pulumi.Bool(true),
 	})
 	return gcpSubnetwork, err

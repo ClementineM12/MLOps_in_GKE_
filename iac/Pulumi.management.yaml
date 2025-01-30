@@ -2,9 +2,9 @@ config:
   gcp:project: mlops-management-project
   gcp:region: europe-west4
   
-  project:prefix: mlops
+  project:prefix: ml
 
-  vpc:regions: "007"
+  vpc:regions: "001"
 
   gke:target: management
   gke:cidr: 0.0.0.0/0

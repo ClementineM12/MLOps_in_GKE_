@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"mlops/project"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/serviceaccount"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -19,34 +18,41 @@ func CreateGKE(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	cloudRegion *project.CloudRegion,
-	gcpNetwork *compute.Network,
-	gcpSubnetwork *compute.Subnetwork,
-	gcpServiceAccount *serviceaccount.Account,
-) (*container.NodePool, *kubernetes.Provider, error) {
+	gcpNetwork pulumi.StringInput,
+	gcpSubnetwork pulumi.StringInput,
+) error {
 
 	config := Configuration(ctx)
 
+	gcpServiceAccount, serviceAccountMember, err := gkeConfigConnectorIAM(ctx, projectConfig)
+	if err != nil {
+		return err
+	}
+
 	gcpGKECluster, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create GKE: %w", err)
+		return fmt.Errorf("failed to create GKE: %w", err)
 	}
 	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), gcpServiceAccount)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
-	}
-	k8sProvider, err := createKubernetesProvider(ctx, cloudRegion.GKEClusterName, gcpGKECluster)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create Kubernetes Provider configuration: %w", err)
+		return fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}
 	if projectConfig.Target == "management" {
-		gcpGKECluster.Endpoint.ApplyT(func(endpoint string) error {
-			if endpoint == "" {
-				return fmt.Errorf("cluster endpoint not ready")
+		namespaceName := "config-connector"
+
+		gcpGKENodePool.ID().ApplyT(func(_ string) error {
+			err := createNamespace(ctx, projectConfig, namespaceName)
+			if err != nil {
+				return fmt.Errorf("failed to create Config Connector namespace: %w", err)
 			}
-			return gkeConfigConnectorIAM(ctx, projectConfig)
+			err = applyResource(ctx, projectConfig, serviceAccountMember)
+			if err != nil {
+				return fmt.Errorf("failed to apply Config Connector configuration: %w", err)
+			}
+			return nil
 		})
 	}
-	return gcpGKENodePool, k8sProvider, nil
+	return nil
 }
 
 // createGKE sets up the Google Kubernetes Engine (GKE) cluster in the specified region using the provided network, subnetwork, and project details.
@@ -57,27 +63,16 @@ func createGKE(
 	config *ClusterConfig,
 	projectConfig project.ProjectConfig,
 	cloudRegion *project.CloudRegion,
-	gcpNetwork *compute.Network,
-	gcpSubnetwork *compute.Subnetwork,
+	gcpNetwork pulumi.StringInput,
+	gcpSubnetwork pulumi.StringInput,
 ) (*container.Cluster, error) {
-
-	// // Conditionally define MonitoringConfig
-	// var monitoringConfig *container.ClusterMonitoringConfigArgs
-	// if projectConfig.Target == "management" {
-	// 	monitoringConfig = &container.ClusterMonitoringConfigArgs{
-	// 		EnableComponents: pulumi.StringArray{
-	// 			pulumi.String("SYSTEM_COMPONENTS"), // Enable system components monitoring
-	// 			pulumi.String("WORKLOADS"),         // Enable workload monitoring
-	// 		},
-	// 	}
-	// }
 
 	cloudRegion.GKEClusterName = fmt.Sprintf("%s-%s-k8s-%s", projectConfig.ResourceNamePrefix, config.Name, cloudRegion.Region)
 	gcpGKECluster, err := container.NewCluster(ctx, cloudRegion.GKEClusterName, &container.ClusterArgs{
 		Project:               pulumi.String(projectConfig.ProjectId),
 		Name:                  pulumi.String(cloudRegion.GKEClusterName),
-		Network:               gcpNetwork.ID(),
-		Subnetwork:            gcpSubnetwork.ID(),
+		Network:               gcpNetwork,
+		Subnetwork:            gcpSubnetwork,
 		Location:              pulumi.String(cloudRegion.Region), // Since we are providing a region, the cluster will be regional
 		RemoveDefaultNodePool: pulumi.Bool(true),
 		InitialNodeCount:      pulumi.Int(1),
@@ -88,16 +83,15 @@ func createGKE(
 		ReleaseChannel: &container.ClusterReleaseChannelArgs{
 			Channel: pulumi.String("REGULAR"),
 		},
-		ResourceLabels:     config.NodePool.ResourceLabels,
-		IpAllocationPolicy: &container.ClusterIpAllocationPolicyArgs{},
-		MasterAuthorizedNetworksConfig: &container.ClusterMasterAuthorizedNetworksConfigArgs{
-			CidrBlocks: &container.ClusterMasterAuthorizedNetworksConfigCidrBlockArray{
-				&container.ClusterMasterAuthorizedNetworksConfigCidrBlockArgs{
-					CidrBlock:   pulumi.String(config.Cidr),
-					DisplayName: pulumi.String("Global Public Access"),
-				},
-			},
-		},
+		ResourceLabels: config.NodePool.ResourceLabels,
+		// MasterAuthorizedNetworksConfig: &container.ClusterMasterAuthorizedNetworksConfigArgs{
+		// 	CidrBlocks: &container.ClusterMasterAuthorizedNetworksConfigCidrBlockArray{
+		// 		&container.ClusterMasterAuthorizedNetworksConfigCidrBlockArgs{
+		// 			CidrBlock:   pulumi.String(config.Cidr),
+		// 			DisplayName: pulumi.String("Global Public Access"),
+		// 		},
+		// 	},
+		// },
 		WorkloadIdentityConfig: &container.ClusterWorkloadIdentityConfigArgs{
 			WorkloadPool: pulumi.String(fmt.Sprintf("%s.svc.id.goog", projectConfig.ProjectId)),
 		},
@@ -106,10 +100,15 @@ func createGKE(
 				Enabled: pulumi.Bool(projectConfig.Target == "management"),
 			},
 		},
-		// MonitoringConfig: monitoringConfig,
 	}, pulumi.IgnoreChanges([]string{"gatewayApiConfig"}))
 
 	ctx.Export("kubeconfig", generateKubeconfig(gcpGKECluster.Endpoint, gcpGKECluster.Name, gcpGKECluster.MasterAuth))
+	if err != nil {
+		err := createKubernetesProvider(ctx, cloudRegion.GKEClusterName, gcpGKECluster)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Kubernetes Provider configuration: %w", err)
+		}
+	}
 
 	return gcpGKECluster, err
 }
@@ -167,13 +166,14 @@ func createKubernetesProvider(
 	ctx *pulumi.Context,
 	clusterName string,
 	gkeCluster *container.Cluster,
-) (*kubernetes.Provider, error) {
+) error {
 
 	resourceName := fmt.Sprintf("%s-kubeconfig", clusterName)
 
-	return kubernetes.NewProvider(ctx, resourceName, &kubernetes.ProviderArgs{
+	_, err := kubernetes.NewProvider(ctx, resourceName, &kubernetes.ProviderArgs{
 		Kubeconfig: generateKubeconfig(gkeCluster.Endpoint, gkeCluster.Name, gkeCluster.MasterAuth),
 	}, pulumi.DependsOn([]pulumi.Resource{gkeCluster}))
+	return err
 }
 
 // generateKubeconfig generates a kubeconfig formatted string based on the GKE cluster's endpoint, cluster name, and master authentication credentials.

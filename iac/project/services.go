@@ -18,7 +18,7 @@ func EnableGCPServices(
 		resourceName := fmt.Sprintf("%s-project-service-%s", projectConfig.ResourceNamePrefix, service)
 
 		// Create the service resource
-		gcpService, err := projects.NewService(ctx, resourceName, &projects.ServiceArgs{
+		_, err := projects.NewService(ctx, resourceName, &projects.ServiceArgs{
 			DisableDependentServices: pulumi.Bool(true),
 			Project:                  pulumi.String(projectConfig.ProjectId),
 			Service:                  pulumi.String(service),
@@ -28,9 +28,6 @@ func EnableGCPServices(
 		if err != nil {
 			ctx.Log.Error(fmt.Sprintf("failed to enable service %s: %s", service, err), nil)
 		}
-
-		// Append successful service enablement to dependencies
-		gcpDependencies = append(gcpDependencies, gcpService)
 	}
 	return gcpDependencies
 }
