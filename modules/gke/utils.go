@@ -1,8 +1,7 @@
-package project
+package gke
 
 import (
 	"math/rand"
-	"strings"
 	"time"
 )
 
@@ -17,13 +16,4 @@ func generateRandomString(
 		b[i] = charset[seededRand.Intn(len(charset))]
 	}
 	return string(b)
-}
-
-// formatListIntoString is a helper function to format the regions for printing
-func formatRegions(regions []CloudRegion) string {
-	var regionNames []string
-	for _, region := range regions {
-		regionNames = append(regionNames, region.Region)
-	}
-	return strings.Join(regionNames, ", ")
 }

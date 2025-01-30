@@ -6,7 +6,12 @@ import (
 )
 
 // Configuration reads and applies configuration values for the GKE cluster
-func Configuration(ctx *pulumi.Context) *ClusterConfig {
+func Configuration(
+	ctx *pulumi.Context,
+) *ClusterConfig {
+
+	target := config.Get(ctx, "gke:target")
+
 	// Initialize NodePoolConfig with defaults
 	defaultNodePool := NodePoolConfig{
 		MachineType:  "e2-medium",
@@ -17,12 +22,16 @@ func Configuration(ctx *pulumi.Context) *ClusterConfig {
 	}
 
 	nodePool := NodePoolConfig{
-		MachineType:  config.Get(ctx, "gke:nodePoolMachineType"),
-		DiskSizeGb:   config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
-		DiskType:     config.Get(ctx, "gke:nodePoolDiskType"),
-		MinNodeCount: config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
-		MaxNodeCount: config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
-		Preemptible:  config.GetBool(ctx, "gke:nodePoolPreemptible"),
+		MachineType:            config.Get(ctx, "gke:nodePoolMachineType"),
+		DiskSizeGb:             config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
+		DiskType:               config.Get(ctx, "gke:nodePoolDiskType"),
+		MinMasterVersion:       gkeNodePoolSpecificConfig[target].MinMasterVersion,
+		MinNodeCount:           config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
+		MaxNodeCount:           config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
+		Preemptible:            config.GetBool(ctx, "gke:nodePoolPreemptible"),
+		OauthScopes:            gkeNodePoolSpecificConfig[target].OauthScopes,
+		WorkloadMetadataConfig: gkeNodePoolSpecificConfig[target].WorkloadMetadataConfig,
+		Metadata:               gkeNodePoolSpecificConfig[target].Metadata,
 	}
 
 	management := ManagementConfig{

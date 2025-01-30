@@ -1,19 +1,25 @@
 config:
   gcp:project: mlops-management-project
+  gcp:region: europe-west4
   
   project:prefix: mlops
 
   vpc:regions: "007"
-  
-  gke:name: management
+
+  gke:target: management
   gke:cidr: 0.0.0.0/0
 
-  gke:nodePoolMachineType: e2-medium
+  gke:nodePoolMachineType: n1-standard-2
   gke:nodePoolDiskSizeGb: 100
   gke:nodePoolDiskType: pd-standard
   gke:nodePoolMinNodeCount: 1
   gke:nodePoolMaxNodeCount: 3
   gke:nodePoolPreemptible: false
+  
+  gke:managementAutoRepair: true
+  gke:managementAutoUpgrade: true
+
+  iam:ConfigConnector: true
 
   istio:create: false
   

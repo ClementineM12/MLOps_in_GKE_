@@ -1,0 +1,26 @@
+config:
+  gcp:project: mlops-development-project
+  gcp:region: europe-west4
+
+  project:prefix: mlops
+
+  vpc:regions: "007"
+  
+  gke:target: deployment
+  gke:cidr: 0.0.0.0/0
+
+  gke:nodePoolMachineType: e2-standard-8
+  gke:nodePoolDiskSizeGb: 100
+  gke:nodePoolDiskType: pd-standard
+  gke:nodePoolMinNodeCount: 2
+  gke:nodePoolMaxNodeCount: 3 # Recommended to be 8
+  gke:nodePoolInitialNodeCount: 2
+  gke:nodePoolPreemptible: false
+
+  gke:loggingService: ogging.googleapis.com/kubernetes
+  gke:monitoringService: monitoring.googleapis.com/kubernetes
+  istio:create: true
+  
+  storage:create: true
+  
+  

@@ -23,9 +23,9 @@ func CreateServiceAccount(
 		return nil
 	}
 
-	gcpServiceAccount, err := createServiceAccount(ctx, projectConfig, &selectedSVC)
+	gcpServiceAccount, serviceAccountMember, err := createServiceAccount(ctx, projectConfig, &selectedSVC)
 	if err != nil {
-		ctx.Log.Error(fmt.Sprintf("IAM Service Account: %s", err), nil)
+		ctx.Log.Error(fmt.Sprintf("failed to create IAM service account: %s", err), nil)
 		return nil
 	}
 	if selectedSVC.createRole {
@@ -34,7 +34,7 @@ func CreateServiceAccount(
 			ctx.Log.Error(fmt.Sprintf("IAM Role: %s", err), nil)
 			return nil
 		}
-		_, err = createIAMRoleBinding(ctx, projectConfig, &selectedSVC, gcpIAMRole, gcpServiceAccount)
+		_, err = createIAMRoleBinding(ctx, projectConfig, &selectedSVC, gcpIAMRole, gcpServiceAccount, serviceAccountMember)
 		if err != nil {
 			ctx.Log.Error(fmt.Sprintf("IAM Role Binding: %s", err), nil)
 			return nil
@@ -48,7 +48,7 @@ func createServiceAccount(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	svc *svc,
-) (*serviceaccount.Account, error) {
+) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	resourceName := fmt.Sprintf("%s-svc-%s", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
 	gcpServiceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
@@ -56,7 +56,10 @@ func createServiceAccount(
 		AccountId:   pulumi.String(svc.AccountId),
 		DisplayName: pulumi.String(svc.DisplayName),
 	})
-	return gcpServiceAccount, err
+	serviceAccountMember := gcpServiceAccount.Email.ApplyT(func(email string) []string {
+		return []string{fmt.Sprintf("serviceAccount:%s", email)}
+	}).(pulumi.StringArrayOutput)
+	return gcpServiceAccount, serviceAccountMember, err
 }
 
 // CreateIAMRole creates a Custom IAM Role that will be used by the Kubernetes Deployment.
@@ -85,15 +88,14 @@ func createIAMRoleBinding(
 	svc *svc,
 	gcpIAMRole *projects.IAMCustomRole,
 	gcpServiceAccount *serviceaccount.Account,
+	serviceAccountMember pulumi.StringArrayOutput,
 ) (*projects.IAMBinding, error) {
 
 	resourceName := fmt.Sprintf("%s-iam-role-binding-%s", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
 	gcpIAMRoleBinding, err := projects.NewIAMBinding(ctx, resourceName, &projects.IAMBindingArgs{
-		Members: pulumi.StringArray{
-			pulumi.String(fmt.Sprintf(svc.Members, projectConfig.ProjectId)),
-		},
+		Members: serviceAccountMember,
 		Project: pulumi.String(projectConfig.ProjectId),
-		Role:    gcpIAMRole.ID(),
+		Role:    gcpIAMRole.RoleId,
 	}, pulumi.DependsOn([]pulumi.Resource{gcpServiceAccount}))
 
 	return gcpIAMRoleBinding, err

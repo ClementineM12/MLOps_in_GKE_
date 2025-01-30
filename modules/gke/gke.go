@@ -30,13 +30,21 @@ func CreateGKE(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE: %w", err)
 	}
-	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster, gcpServiceAccount)
+	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), gcpServiceAccount)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}
 	k8sProvider, err := createKubernetesProvider(ctx, cloudRegion.GKEClusterName, gcpGKECluster)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Kubernetes Provider configuration: %w", err)
+	}
+	if projectConfig.Target == "management" {
+		gcpGKECluster.Endpoint.ApplyT(func(endpoint string) error {
+			if endpoint == "" {
+				return fmt.Errorf("cluster endpoint not ready")
+			}
+			return gkeConfigConnectorIAM(ctx, projectConfig)
+		})
 	}
 	return gcpGKENodePool, k8sProvider, nil
 }
@@ -53,6 +61,17 @@ func createGKE(
 	gcpSubnetwork *compute.Subnetwork,
 ) (*container.Cluster, error) {
 
+	// // Conditionally define MonitoringConfig
+	// var monitoringConfig *container.ClusterMonitoringConfigArgs
+	// if projectConfig.Target == "management" {
+	// 	monitoringConfig = &container.ClusterMonitoringConfigArgs{
+	// 		EnableComponents: pulumi.StringArray{
+	// 			pulumi.String("SYSTEM_COMPONENTS"), // Enable system components monitoring
+	// 			pulumi.String("WORKLOADS"),         // Enable workload monitoring
+	// 		},
+	// 	}
+	// }
+
 	cloudRegion.GKEClusterName = fmt.Sprintf("%s-%s-k8s-%s", projectConfig.ResourceNamePrefix, config.Name, cloudRegion.Region)
 	gcpGKECluster, err := container.NewCluster(ctx, cloudRegion.GKEClusterName, &container.ClusterArgs{
 		Project:               pulumi.String(projectConfig.ProjectId),
@@ -62,9 +81,14 @@ func createGKE(
 		Location:              pulumi.String(cloudRegion.Region), // Since we are providing a region, the cluster will be regional
 		RemoveDefaultNodePool: pulumi.Bool(true),
 		InitialNodeCount:      pulumi.Int(1),
+		MinMasterVersion:      pulumi.String(config.NodePool.MinMasterVersion),
 		VerticalPodAutoscaling: &container.ClusterVerticalPodAutoscalingArgs{
 			Enabled: pulumi.Bool(true),
 		},
+		ReleaseChannel: &container.ClusterReleaseChannelArgs{
+			Channel: pulumi.String("REGULAR"),
+		},
+		ResourceLabels:     config.NodePool.ResourceLabels,
 		IpAllocationPolicy: &container.ClusterIpAllocationPolicyArgs{},
 		MasterAuthorizedNetworksConfig: &container.ClusterMasterAuthorizedNetworksConfigArgs{
 			CidrBlocks: &container.ClusterMasterAuthorizedNetworksConfigCidrBlockArray{
@@ -77,11 +101,15 @@ func createGKE(
 		WorkloadIdentityConfig: &container.ClusterWorkloadIdentityConfigArgs{
 			WorkloadPool: pulumi.String(fmt.Sprintf("%s.svc.id.goog", projectConfig.ProjectId)),
 		},
+		AddonsConfig: &container.ClusterAddonsConfigArgs{
+			ConfigConnectorConfig: &container.ClusterAddonsConfigConfigConnectorConfigArgs{
+				Enabled: pulumi.Bool(projectConfig.Target == "management"),
+			},
+		},
+		// MonitoringConfig: monitoringConfig,
 	}, pulumi.IgnoreChanges([]string{"gatewayApiConfig"}))
 
-	// Export the Cluster name and endpoint
-	ctx.Export("clusterName", gcpGKECluster.Name)
-	ctx.Export("clusterEndpoint", gcpGKECluster.Endpoint)
+	ctx.Export("kubeconfig", generateKubeconfig(gcpGKECluster.Endpoint, gcpGKECluster.Name, gcpGKECluster.MasterAuth))
 
 	return gcpGKECluster, err
 }
@@ -94,27 +122,29 @@ func createGKENodePool(
 	config *ClusterConfig,
 	projectConfig project.ProjectConfig,
 	cloudRegion *project.CloudRegion,
-	gcpGKECluster *container.Cluster,
+	clusterID pulumi.StringInput,
 	gcpServiceAccount *serviceaccount.Account,
 ) (*container.NodePool, error) {
 
 	resourceName := fmt.Sprintf("%s-%s-k8s-%s-np", projectConfig.ResourceNamePrefix, config.Name, cloudRegion.Region)
 	gcpGKENodePool, err := container.NewNodePool(ctx, resourceName, &container.NodePoolArgs{
-		Cluster:   gcpGKECluster.ID(),
+		Cluster:   clusterID,
 		Name:      pulumi.String(resourceName),
 		NodeCount: pulumi.Int(1),
 		NodeConfig: &container.NodePoolNodeConfigArgs{
+			Metadata:       config.NodePool.Metadata,
 			Preemptible:    pulumi.Bool(config.NodePool.Preemptible),
 			MachineType:    pulumi.String(config.NodePool.MachineType),
+			OauthScopes:    config.NodePool.OauthScopes,
+			Labels:         config.NodePool.ResourceLabels,
+			DiskType:       pulumi.String(config.NodePool.DiskType),
+			DiskSizeGb:     pulumi.Int(config.NodePool.DiskSizeGb),
 			ServiceAccount: gcpServiceAccount.Email,
-			OauthScopes: pulumi.StringArray{
-				pulumi.String("https://www.googleapis.com/auth/devstorage.read_only"),
-				pulumi.String("https://www.googleapis.com/auth/logging.write"),
-				pulumi.String("https://www.googleapis.com/auth/monitoring"),
-				pulumi.String("https://www.googleapis.com/auth/trace.append"),
-			},
-			DiskType:   pulumi.String(config.NodePool.DiskType),
-			DiskSizeGb: pulumi.Int(config.NodePool.DiskSizeGb),
+			// Add Workload Metadata Config for Workload Identity
+			// Note: Enabling Workload Identity on an existing cluster does not automatically enable Workload Identity on the cluster's existing node pools.
+			//           We recommend that you enable Workload Identity on all your cluster's node pools since Config Connector could run on any of them.
+			//           https://cloud.google.com/config-connector/docs/how-to/install-upgrade-uninstall#prerequisites
+			WorkloadMetadataConfig: config.NodePool.WorkloadMetadataConfig,
 		},
 		Autoscaling: &container.NodePoolAutoscalingArgs{
 			LocationPolicy: pulumi.String("BALANCED"),
@@ -140,9 +170,9 @@ func createKubernetesProvider(
 ) (*kubernetes.Provider, error) {
 
 	resourceName := fmt.Sprintf("%s-kubeconfig", clusterName)
-	kubeconfig := generateKubeconfig(gkeCluster.Endpoint, gkeCluster.Name, gkeCluster.MasterAuth)
+
 	return kubernetes.NewProvider(ctx, resourceName, &kubernetes.ProviderArgs{
-		Kubeconfig: kubeconfig,
+		Kubeconfig: generateKubeconfig(gkeCluster.Endpoint, gkeCluster.Name, gkeCluster.MasterAuth),
 	}, pulumi.DependsOn([]pulumi.Resource{gkeCluster}))
 }
 
@@ -154,8 +184,7 @@ func generateKubeconfig(
 	clusterName pulumi.StringOutput,
 	clusterMasterAuth container.ClusterMasterAuthOutput,
 ) pulumi.StringOutput {
-
-	context := pulumi.Sprintf("%s", clusterName)
+	context := pulumi.Sprintf("%s-kubeconfig", clusterName)
 
 	return pulumi.Sprintf(`apiVersion: v1
 clusters:

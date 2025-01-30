@@ -8,7 +8,6 @@ type svc struct {
 	resourceNameSuffix string
 	AccountId          string
 	DisplayName        string
-	Members            string
 	Description        string
 	Title              string
 	IAMRoleId          string

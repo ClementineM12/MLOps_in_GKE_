@@ -1,13 +1,23 @@
 package gke
 
+import (
+	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+)
+
 // NodePoolConfig holds the configuration for a GKE node pool
 type NodePoolConfig struct {
-	MachineType  string
-	DiskSizeGb   int
-	DiskType     string
-	Preemptible  bool
-	MinNodeCount int
-	MaxNodeCount int
+	MachineType            string
+	DiskSizeGb             int
+	DiskType               string
+	Preemptible            bool
+	MinMasterVersion       pulumi.String
+	MinNodeCount           int
+	MaxNodeCount           int
+	OauthScopes            pulumi.StringArray
+	WorkloadMetadataConfig *container.NodePoolNodeConfigWorkloadMetadataConfigArgs
+	Metadata               pulumi.StringMap
+	ResourceLabels         pulumi.StringMap
 }
 
 type ManagementConfig struct {

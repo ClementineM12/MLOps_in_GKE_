@@ -28,7 +28,6 @@ var SVC = map[string]svc{
 		resourceNameSuffix: "autoneg",
 		AccountId:          "svc-autoneg-system",
 		DisplayName:        "AutoNEG Service Account",
-		Members:            "serviceAccount:autoneg-system@%s.iam.gserviceaccount.com",
 		Description:        "Custom IAM Role - GKE AutoNeg",
 		Title:              "AutoNEG",
 		IAMRoleId:          "autoneg_system",
@@ -49,4 +48,10 @@ var SVC = map[string]svc{
 		DisplayName:        "Admin Service Account",
 		createRole:         false,
 	},
+	// "ConfigConnector": {
+	// 	resourceNameSuffix: "config-connector",
+	// 	AccountId: ,
+	// 	DisplayName:"Config Connector IAM Service Account" ,
+	// 	Members: "serviceAccount:%s.svc.id.goog[cnrm-system/cnrm-controller-manager]",
+	// }
 }

@@ -19,6 +19,7 @@ var gcpServices = map[string][]string{
 		"cloudbuild.googleapis.c",
 	},
 	"management": {
+		"krmapihosting.googleapis.com",
 		"compute.googleapis.com",
 		"container.googleapis.com",
 	},

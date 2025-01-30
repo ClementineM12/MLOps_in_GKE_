@@ -7,7 +7,6 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
-	k8s "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -106,7 +105,6 @@ func CreateIstioIngressGateway(
 	helmIstioBase *helm.Release,
 	helmIstioD *helm.Release,
 	gcpGKENodePool *container.NodePool,
-	k8sAppNamespace *k8s.Namespace,
 	gcpBackendService *compute.BackendService,
 ) error {
 	resourceName := fmt.Sprintf("%s-istio-igw-%s", projectConfig.ResourceNamePrefix, cloudRegion.Region)
@@ -117,7 +115,7 @@ func CreateIstioIngressGateway(
 			Repo: pulumi.String("https://istio-release.storage.googleapis.com/charts"),
 		},
 		Chart:         pulumi.String("gateway"),
-		Namespace:     k8sAppNamespace.Metadata.Name(),
+		Namespace:     pulumi.String("default"),
 		CleanupOnFail: pulumi.Bool(true),
 		Values: pulumi.Map{
 			"service": pulumi.Map{

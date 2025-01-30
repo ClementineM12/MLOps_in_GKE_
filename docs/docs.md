@@ -10,6 +10,10 @@
 
 1. Follow the proper [instruction](https://cloud.google.com/sdk/docs/install) to install google cloud cli for your working environment.
 2. Install [pulumi](https://www.pulumi.com/docs/iac/get-started/gcp/begin/) and the proper language version ( go ).
+3. Pulumi Kubernetes Plugin
+    ```bash
+      pulumi plugin install resource kubernetes
+    ```
 
 > [!IMPORTANT]
 > If you are using the Google Cloud Free Program or the 12-month trial period with $300 credit, note that the free tier does not offer enough resources for default full Kubeflow installation. You need to upgrade to a paid account. For more info, check [here](https://googlecloudplatform.github.io/kubeflow-gke-docs/dev/docs/deploy/project-setup/#setting-up-a-project).
