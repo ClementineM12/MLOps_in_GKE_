@@ -81,3 +81,19 @@ gcloud auth activate-service-account --key-file=$GCLOUD_KEYFILE_JSON
 
 > [!NOTE]
 > The set up of Cloud Identity-Aware Proxy ( Cloud IAP ) is recommended for production deployments or deployments with access to sensitive data, thus this step was not configured.
+
+# GO Pulumi-GCP Package
+
+Manages a [Google Kubernetes Engine (GKE)](https://pkg.go.dev/github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container) cluster.
+
+To get more information about GKE clusters, see:
+
+[The API reference](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1beta1/projects.locations.clusters)
+How-to guides
+[GKE overview](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
+[About cluster configuration choices](https://cloud.google.com/kubernetes-engine/docs/concepts/types-of-clusters)
+
+> On version 5.0.0+ of the provider, you must explicitly set `deletionProtection = false` and run `pulumi up` to write the field to state in order to destroy a cluster.
+
+> All arguments and attributes (including certificate outputs) will be stored in the raw state as plaintext. [Read more about secrets in state](https://www.pulumi.com/docs/intro/concepts/programming-model/#secrets).
+

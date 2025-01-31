@@ -2,14 +2,14 @@ config:
   gcp:project: mlops-management-project
   gcp:region: europe-west4
   
-  project:prefix: ml
+  project:prefix: mlll
 
-  vpc:regions: "001"
+  vpc:regions: "009"
 
   gke:target: management
   gke:cidr: 0.0.0.0/0
 
-  gke:nodePoolMachineType: n1-standard-2
+  gke:nodePoolMachineType: n2-standard-2
   gke:nodePoolDiskSizeGb: 100
   gke:nodePoolDiskType: pd-standard
   gke:nodePoolMinNodeCount: 1

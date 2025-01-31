@@ -36,16 +36,10 @@ func main() {
 }
 
 func CreateResources(ctx *pulumi.Context, projectConfig project.ProjectConfig, opts ...pulumi.ResourceOption) error {
-	// -------------------------- IAM ------------------------------
-	// gcpServiceAccount := gcpIAM.CreateServiceAccount(ctx, projectConfig, "Admin")
-
-	// ---------------------------  VPC ----------------------------
 	gcpNetwork, err := vpc.CreateVPC(ctx, projectConfig, opts...)
 	if err != nil {
 		return err
 	}
-
-	// Process Each Cloud Region
 	for _, cloudRegion := range projectConfig.EnabledRegions {
 
 		gcpSubnetwork, err := vpc.CreateVPCSubnet(ctx, projectConfig, cloudRegion, gcpNetwork.ID())
@@ -57,7 +51,6 @@ func CreateResources(ctx *pulumi.Context, projectConfig project.ProjectConfig, o
 			return err
 		}
 	}
-
 	return nil
 }
 

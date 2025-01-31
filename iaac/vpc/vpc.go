@@ -56,7 +56,7 @@ func createFirewallRuleHealthChecks(
 	gcpNetwork pulumi.StringInput,
 ) error {
 
-	resourceName := fmt.Sprintf("%s-fw-in-allow-health-checks", projectConfig.ResourceNamePrefix)
+	resourceName := fmt.Sprintf("%s-fw-allow-health-checks", projectConfig.ResourceNamePrefix)
 	_, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Name:        pulumi.String(resourceName),
@@ -88,7 +88,7 @@ func createFirewallInbound(
 	gcpNetwork pulumi.StringInput,
 ) error {
 
-	resourceName := fmt.Sprintf("%s-fw-in-allow-cluster-app", projectConfig.ResourceNamePrefix)
+	resourceName := fmt.Sprintf("%s-fw-allow-cluster-app", projectConfig.ResourceNamePrefix)
 	_, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Name:        pulumi.String(resourceName),
