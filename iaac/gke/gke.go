@@ -20,21 +20,21 @@ func CreateGKE(
 	cloudRegion *project.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 	gcpSubnetwork pulumi.StringInput,
-) error {
+) (*kubernetes.Provider, error) {
 
 	config := Configuration(ctx)
 
 	gcpServiceAccount, serviceAccountMember, err := gkeConfigConnectorIAM(ctx, projectConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork)
 	if err != nil {
-		return fmt.Errorf("failed to create GKE: %w", err)
+		return nil, fmt.Errorf("failed to create GKE: %w", err)
 	}
 	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), gcpServiceAccount)
 	if err != nil {
-		return fmt.Errorf("failed to create GKE Node Pool: %w", err)
+		return nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}
 	if projectConfig.Target == "management" {
 		namespaceName := "config-connector"
@@ -51,7 +51,7 @@ func CreateGKE(
 			return nil
 		})
 	}
-	return nil
+	return k8sProvider, err
 }
 
 // createGKE sets up the Google Kubernetes Engine (GKE) cluster in the specified region using the provided network, subnetwork, and project details.

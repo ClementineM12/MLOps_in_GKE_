@@ -17,6 +17,7 @@ var gcpServices = map[string][]string{
 		"servicecontrol.googleapis.com",
 		"endpoints.googleapis.com",
 		"cloudbuild.googleapis.com",
+		// "artifactregistry.googleapis.com",
 		// OIDC
 		"securitycenter.googleapis.com",
 	},

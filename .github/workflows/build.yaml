@@ -1,18 +1,11 @@
-name: Deploy Helm Chart
+name: Deploy Kubeflow Helm Chart
 
 on:
   workflow_dispatch:
-    inputs:
-      chart:
-        description: The chart to build
-        required: true
-        default: "kubeflow"
-        type: choice
-        options:
-          - kubeflow
 
 jobs:
-  deploy:
+  build-and-push:
+    name: Build and Push Helm Chart
     runs-on: [ ubuntu-latest ] 
     permissions:
       contents: read
@@ -25,13 +18,13 @@ jobs:
       - name: Define chart version
         id: define-chart-version
         run: |
-          VERSION=$(yq .version helm/$CHART/Chart.yaml)
+          VERSION=$(yq .version helm/kubeflow/Chart.yaml)
           echo "CHART_VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
         env:
           CHART: ${{ github.event.inputs.chart }}
 
       - uses: google-github-actions/auth@v2
-        id: gcp-registry-login
+        id: gcp-login
         with:
           project_id: ${{ secrets.PROJECT_ID }}
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
@@ -43,4 +36,4 @@ jobs:
           VERSION: ${{ steps.define-chart-version.outputs.CHART_VERSION }}
         run: |
           helm package $CHART
-          helm push $CHART-$VERSION.tgz oci://$REGISTRY/helm
+          helm push $CHART-$VERSION.tgz oci://$REGISTRY

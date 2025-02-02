@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mlops/argocd"
 	"mlops/gke"
 	"mlops/registry"
 
@@ -60,7 +61,7 @@ func CreateManagement(ctx *pulumi.Context, projectConfig project.ProjectConfig, 
 			return err
 		}
 
-		err = gke.CreateGKE(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
+		_, err = gke.CreateGKE(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
 		if err != nil {
 			return err
 		}
@@ -80,9 +81,13 @@ func CreateDeployment(ctx *pulumi.Context, projectConfig project.ProjectConfig, 
 			return err
 		}
 
-		err = gke.CreateGKE(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
+		k8sProvider, err := gke.CreateGKE(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
 		if err != nil {
 			return err
+		}
+
+		if config.GetBool(ctx, "argocd:create") {
+			argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
 		}
 	}
 	return nil
