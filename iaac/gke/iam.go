@@ -59,8 +59,6 @@ func CreateWorkloadIdentityPool(
 	projectConfig project.ProjectConfig,
 ) error {
 
-	// Generate a unique suffix for the Workload Identity Pool ID
-	randomSuffix := generateRandomString(6)
 	resourceName := fmt.Sprintf("%s-gke-wip", projectConfig.ResourceNamePrefix)
 
 	// Create the Workload Identity Pool
@@ -68,8 +66,8 @@ func CreateWorkloadIdentityPool(
 		Project:                pulumi.String(projectConfig.ProjectId),
 		Description:            pulumi.String("GKE - Workload Identity Pool"),
 		Disabled:               pulumi.Bool(false),
-		DisplayName:            pulumi.String(resourceName),
-		WorkloadIdentityPoolId: pulumi.String(fmt.Sprintf("%s-%s", projectConfig.ResourceNamePrefix, randomSuffix)),
+		DisplayName:            pulumi.String("GKE Workload Identity Pool"),
+		WorkloadIdentityPoolId: pulumi.String(fmt.Sprintf("%s-gke-pool", projectConfig.ResourceNamePrefix)),
 	})
 	if err != nil {
 		return err

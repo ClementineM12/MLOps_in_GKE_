@@ -43,7 +43,7 @@ func createGithubServiceAccountIAMBinding(
 	// Allow the Service Account to be used via Workload Identity Federation
 	_, err := serviceaccount.NewIAMBinding(ctx, resourceName, &serviceaccount.IAMBindingArgs{
 		ServiceAccountId: serviceAccount,
-		Role:             pulumi.String("roles/iam.workloadIdentityUser"),
+		// Role:             pulumi.String("roles/iam.workloadIdentityPoolAdmin"),
 		Members: pulumi.StringArray{
 			pulumi.Sprintf("principalSet://iam.googleapis.com/%s/attribute.repository/%s", wifPool, githubRepo),
 		},
