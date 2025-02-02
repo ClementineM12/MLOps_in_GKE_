@@ -30,8 +30,7 @@ jobs:
       - name: Package and push helm chart to GCP Artifact Registry
         env:
           REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
-          CHART: kubeflow
           VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
         run: |
-          helm package helm/$CHART/. --version $VERSION
-          helm push $CHART-$VERSION.tgz oci://$REGISTRY
+          helm package helm/kubeflow/.
+          helm push kubeflow-$VERSION.tgz oci://$REGISTRY
