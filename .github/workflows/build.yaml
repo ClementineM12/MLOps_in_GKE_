@@ -47,8 +47,8 @@ jobs:
           KUBEFLOW_CORE_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_CORE_VERSION }}
           KUBEFLOW_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_VERSION }}
         run: |
-          helm package helm/kubeflow-core -d helm --version $KUBEFLOW_CORE_VERSION
-          helm package helm/kubeflow -d helm --version $KUBEFLOW_VERSION
+          helm package helm/kubeflow-core --version $KUBEFLOW_CORE_VERSION
+          helm package helm/kubeflow --version $KUBEFLOW_VERSION
 
           helm push kubeflow-core-$KUBEFLOW_CORE_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
           helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
