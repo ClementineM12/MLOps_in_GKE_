@@ -3,6 +3,12 @@ name: Build Kubeflow Helm Chart
 on:
   workflow_dispatch:
 
+env: 
+    REGION: ${{ vars.REGION }}
+    SERVICE_ACCOUNT: github-svc@mlops-development-project.iam.gserviceaccount.com
+    ACCESS_TOKEN_LIFETIME: 200s
+    CHART_PATH: helm/kubeflow
+
 jobs:
   build-and-push:
     name: Build and Push Helm Chart
@@ -18,7 +24,7 @@ jobs:
       - name: Define chart version
         id: define-chart-version
         run: |
-          VERSION=$(yq e '.version' helm/kubeflow/Chart.yaml)
+          VERSION=$(yq e '.version' $CHART_PATH/Chart.yaml)
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
@@ -26,18 +32,18 @@ jobs:
         with:
           token_format: 'access_token'
           project_id: ${{ secrets.PROJECT_ID }}
-          service_account: 'github-svc@mlops-development-project.iam.gserviceaccount.com'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          access_token_lifetime: ${{ env.ACCESS_TOKEN_LIFETIME }}
 
-      - name: Verify Authentication
+      - name: Verify Authentication to Artifact Registry
         run: |
-          gcloud auth configure-docker europe-west8-docker.pkg.dev --access-token-file=${{steps.auth.outputs.credentials_file_path}}
+          gcloud auth configure-docker $REGION-docker.pkg.dev --access-token-file=${{steps.auth.outputs.credentials_file_path}}
 
       - name: Package and push helm chart to GCP Artifact Registry
         env:
           VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
-          REGION: europe-west8
         run: |
-          helm package helm/kubeflow/.
+          helm package $CHART_PATH/.
           helm push kubeflow-$VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
 
