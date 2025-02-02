@@ -1,0 +1,31 @@
+{{- if .Values.certManager.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.global.project }}
+  source:
+    chart: {{ .Values.certManager.source.chart }}
+    repoURL: {{ .Values.certManager.source.repoURL }}
+    targetRevision: {{ .Values.certManager.source.targetRevision }}
+    helm:
+      releaseName: cert-manager
+      ignoreMissingValueFiles: {{ .Values.certManager.source.helm.ignoreMissingValueFiles }}
+      valueFiles: []
+      values: |
+        {{- .Values.certManager.source.helm.values | nindent 8 -}}
+  destination:
+    namespace: cert-manager
+    name: in-cluster
+  syncPolicy:
+    automated:
+      prune: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{- end }}

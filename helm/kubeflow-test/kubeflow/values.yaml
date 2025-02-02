@@ -1,0 +1,17 @@
+name: 000-kubeflow
+namespace: argocd
+additionalLabels: {}
+additionalAnnotations: {}
+finalizers:
+  - resources-finalizer.argocd.argoproj.io
+project: default
+repoURL: oci://europe-west8-docker.pkg.dev/mlops-development-project/helm-charts
+targetRevision: "0.4.1"
+chart: kubeflow-core
+destination:
+  server: https://kubernetes.default.svc
+  namespace: argocd
+syncPolicy:
+  automated:
+    prune: false
+    selfHeal: false

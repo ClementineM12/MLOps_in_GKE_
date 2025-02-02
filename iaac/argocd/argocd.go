@@ -50,7 +50,7 @@ func DeployArgoCD(
 		return nil, err
 	}
 
-	_, err = getValues(argocdValuesPath)
+	values, err := getValues(argocdValuesPath)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func DeployArgoCD(
 		FetchArgs: helm.FetchArgs{
 			Repo: pulumi.String(argocdHelm),
 		},
-		// Values:    values,
+		Values:    values,
 		Namespace: namespace.ID(),
 	},
 		pulumi.Provider(k8sProvider),

@@ -1,0 +1,30 @@
+{{- if .Values.istioBase.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-base
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.global.project }}
+  source:
+    chart: {{ .Values.istioBase.source.chart }}
+    repoURL: {{ .Values.istioBase.source.repoURL }}
+    targetRevision: {{ .Values.istioBase.source.targetRevision }}
+    helm:
+      releaseName: {{ .Values.istioBase.source.helm.releaseName }}
+      ignoreMissingValueFiles: {{ .Values.istioBase.source.helm.ignoreMissingValueFiles }}
+      valueFiles: []
+  destination:
+    namespace: istio-system
+    name: in-cluster
+  syncPolicy:
+    automated:
+      prune: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{- end }}
+

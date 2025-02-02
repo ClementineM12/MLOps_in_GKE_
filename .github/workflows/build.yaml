@@ -24,10 +24,14 @@ jobs:
       - name: Define chart version
         id: define-chart-version
         run: |
-          KUBEFLOW_CORE_VERSION=$(yq e '.version' helm/kubeflow-core/Chart.yaml)
           KUBEFLOW_VERSION=$(yq e '.version' helm/kubeflow/Chart.yaml)
-          echo "KUBEFLOW_CORE_VERSION=$KUBEFLOW_CORE_VERSION" >> "$GITHUB_OUTPUT"
           echo "KUBEFLOW_VERSION=$KUBEFLOW_VERSION" >> "$GITHUB_OUTPUT"
+
+      # - name: Define chart version
+      #   id: define-chart-version-2
+      #   run: |
+      #     KUBEFLOW_CORE_VERSION=$(yq e '.version' helm/kubeflow-core/Chart.yaml)
+      #     echo "KUBEFLOW_CORE_VERSION=$KUBEFLOW_CORE_VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
         id: auth
@@ -44,12 +48,19 @@ jobs:
 
       - name: Package and push helm charts to GCP Artifact Registry
         env:
-          KUBEFLOW_CORE_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_CORE_VERSION }}
           KUBEFLOW_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_VERSION }}
         run: |
-          helm package helm/kubeflow-core --version $KUBEFLOW_CORE_VERSION
           helm package helm/kubeflow --version $KUBEFLOW_VERSION
-
-          helm push kubeflow-core-$KUBEFLOW_CORE_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
           helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
+
+      # - name: Package and push helm charts to GCP Artifact Registry [ CORE ]
+      #   env:
+      #     KUBEFLOW_CORE_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_CORE_VERSION }}
+      #     KUBEFLOW_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_VERSION }}
+      #   run: |
+      #     helm package helm/kubeflow-core --version $KUBEFLOW_CORE_VERSION
+      #     helm package helm/kubeflow --version $KUBEFLOW_VERSION
+
+      #     # helm push kubeflow-core-$KUBEFLOW_CORE_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
+      #     helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
 
