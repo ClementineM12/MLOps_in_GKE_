@@ -40,5 +40,5 @@ jobs:
           REGION: europe-west8
         run: |
           helm package helm/kubeflow/.
-          helm push kubeflow-$VERSION.tgz oci://$REGION-docker.pkg.dev/$PROJECT_ID/helm-charts
+          helm push kubeflow-$VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
 
