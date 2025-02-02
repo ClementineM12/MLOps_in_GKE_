@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mlops/project"
 
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/iam"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/projects"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -34,20 +35,20 @@ func createGithubServiceAccountIAMBinding(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	serviceAccount pulumi.StringInput,
-	wifPool pulumi.StringInput,
+	wifPool *iam.WorkloadIdentityPool,
 	githubRepo string,
 ) error {
-
 	resourceName := fmt.Sprintf("%s-github-svc-wip-binding", projectConfig.ResourceNamePrefix)
 
 	// Allow the Service Account to be used via Workload Identity Federation
 	_, err := serviceaccount.NewIAMBinding(ctx, resourceName, &serviceaccount.IAMBindingArgs{
 		ServiceAccountId: serviceAccount,
-		// Role:             pulumi.String("roles/iam.workloadIdentityPoolAdmin"),
+		Role:             pulumi.String("roles/iam.workloadIdentityUser"),
 		Members: pulumi.StringArray{
-			pulumi.Sprintf("principalSet://iam.googleapis.com/%s/attribute.repository/%s", wifPool, githubRepo),
+			pulumi.Sprintf("principalSet://iam.googleapis.com/%s/attribute.repository/%s", wifPool.Name, githubRepo),
 		},
-	})
+	}, pulumi.DependsOn([]pulumi.Resource{wifPool}))
+
 	return err
 }
 
@@ -64,7 +65,7 @@ func createRegistryIAMMember(
 	// Give the service account permissions to push to Artifact Registry
 	_, err := projects.NewIAMMember(ctx, resourceName, &projects.IAMMemberArgs{
 		Project: pulumi.String(projectConfig.ProjectId),
-		Role:    pulumi.String("roles/artifactregistry.writer"),
+		Role:    pulumi.String("roles/compute.viewer"),
 		Member:  member,
 	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount}))
 

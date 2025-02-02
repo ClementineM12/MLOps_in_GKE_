@@ -40,7 +40,7 @@ func CreateArtifactRegistry(
 		if err != nil {
 			return fmt.Errorf("failed to create Service Account: %w", err)
 		}
-		err = createGithubServiceAccountIAMBinding(ctx, projectConfig, serviceAccount.ID(), wifPool.ID(), githubRepo)
+		err = createGithubServiceAccountIAMBinding(ctx, projectConfig, serviceAccount.ID(), wifPool, githubRepo)
 		if err != nil {
 			return fmt.Errorf("failed to bind IAM role to Service Account: %w", err)
 		}

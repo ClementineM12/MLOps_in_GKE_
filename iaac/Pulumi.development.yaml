@@ -30,6 +30,6 @@ config:
   ar:create: true 
   ar:githubRepo: "ClementineM12/MLOps"
 
-  argocd:create: true
+  argocd:create: false
   argocd:logLevel: INFO
   

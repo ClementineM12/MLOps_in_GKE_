@@ -27,15 +27,14 @@ jobs:
           project_id: ${{ secrets.PROJECT_ID }}
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
       
-      - name: Debug GCP Authentication
-        run: |
-          gcloud auth list
-          gcloud artifacts repositories list --project=${{ secrets.PROJECT_ID }}
-
-      # - name: Package and push helm chart to GCP Artifact Registry
-      #   env:
-      #     REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
-      #     VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
+      # - name: Debug GCP Authentication
       #   run: |
-      #     helm package helm/kubeflow/.
-      #     helm push kubeflow-$VERSION.tgz oci://$REGISTRY
+      #     gcloud artifacts repositories list --project=${{ secrets.PROJECT_ID }}
+
+      - name: Package and push helm chart to GCP Artifact Registry
+        env:
+          REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
+          VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
+        run: |
+          helm package helm/kubeflow/.
+          helm push kubeflow-$VERSION.tgz oci://$REGISTRY
