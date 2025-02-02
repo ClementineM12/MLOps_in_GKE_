@@ -36,8 +36,9 @@ jobs:
 
       - name: Package and push helm chart to GCP Artifact Registry
         env:
-          REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
           VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
+          REGION: europe-west8
         run: |
           helm package helm/kubeflow/.
-          helm push kubeflow-$VERSION.tgz oci://$REGISTRY
+          helm push kubeflow-$VERSION.tgz oci://$REGION-docker.pkg.dev/$PROJECT_ID/helm-charts
+
