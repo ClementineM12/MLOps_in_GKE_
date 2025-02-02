@@ -20,8 +20,6 @@ jobs:
         run: |
           VERSION=$(yq .version helm/kubeflow/Chart.yaml)
           echo "CHART_VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
-        env:
-          CHART: ${{ github.event.inputs.chart }}
 
       - uses: google-github-actions/auth@v2
         id: gcp-login
@@ -32,7 +30,7 @@ jobs:
       - name: Package and push helm chart to GCP Artifact Registry
         env:
           REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
-          CHART: ${{ github.event.inputs.chart }}
+          CHART: kubeflow
           VERSION: ${{ steps.define-chart-version.outputs.CHART_VERSION }}
         run: |
           helm package $CHART
