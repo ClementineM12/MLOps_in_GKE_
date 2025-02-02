@@ -19,14 +19,19 @@ func CreateVPC(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VPC Network: %w", err)
 	}
-	err = createFirewallRuleHealthChecks(ctx, projectConfig, gcpVPCNetwork.ID())
+	firewallHealthCheck, err := createFirewallRuleHealthChecks(ctx, projectConfig, gcpVPCNetwork.ID())
 	if err != nil {
 		return nil, err
 	}
-	err = createFirewallInbound(ctx, projectConfig, gcpVPCNetwork.ID())
+	firewallInbound, err := createFirewallInbound(ctx, projectConfig, gcpVPCNetwork.ID())
 	if err != nil {
 		return nil, err
 	}
+
+	// Ensure CreateVPC does not return before firewall rules are applied
+	pulumi.All(firewallHealthCheck, firewallInbound).ApplyT(func(_ []interface{}) error {
+		return nil
+	})
 	return gcpVPCNetwork, nil
 }
 
@@ -54,10 +59,10 @@ func createFirewallRuleHealthChecks(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	gcpNetwork pulumi.StringInput,
-) error {
+) (*compute.Firewall, error) {
 
 	resourceName := fmt.Sprintf("%s-fw-allow-health-checks", projectConfig.ResourceNamePrefix)
-	_, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
+	firewallHealthCheck, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Name:        pulumi.String(resourceName),
 		Description: pulumi.String("FW - Allow - Ingress - TCP Health Checks"),
@@ -77,7 +82,7 @@ func createFirewallRuleHealthChecks(
 			pulumi.String("130.211.0.0/22"),
 		},
 	})
-	return err
+	return firewallHealthCheck, err
 }
 
 // createFirewallInbound creates a firewall rule to allow inbound TCP traffic on ports 80, 8080, and 443,
@@ -86,10 +91,10 @@ func createFirewallInbound(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	gcpNetwork pulumi.StringInput,
-) error {
+) (*compute.Firewall, error) {
 
 	resourceName := fmt.Sprintf("%s-fw-allow-cluster-app", projectConfig.ResourceNamePrefix)
-	_, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
+	firewallInbound, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Name:        pulumi.String(resourceName),
 		Description: pulumi.String("FW - Allow - Ingress - Load Balancer to Application"),
@@ -111,7 +116,7 @@ func createFirewallInbound(
 			pulumi.String("gke-app-access"),
 		},
 	})
-	return err
+	return firewallInbound, err
 }
 
 // CreateVPCSubnet reates a subnetwork (subnet) within the VPC.

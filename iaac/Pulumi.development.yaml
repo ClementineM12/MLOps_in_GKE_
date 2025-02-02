@@ -1,15 +1,15 @@
 config:
   gcp:project: mlops-development-project
-  gcp:region: europe-west4
+  gcp:region: europe-west8
 
-  project:prefix: mlops
+  project:prefix: ml
 
-  vpc:regions: "007"
+  vpc:regions: "009"
   
   gke:target: deployment
   gke:cidr: 0.0.0.0/0
 
-  gke:nodePoolMachineType: e2-standard-8
+  gke:nodePoolMachineType: n2-standard-2
   gke:nodePoolDiskSizeGb: 100
   gke:nodePoolDiskType: pd-standard
   gke:nodePoolMinNodeCount: 2
@@ -17,10 +17,17 @@ config:
   gke:nodePoolInitialNodeCount: 2
   gke:nodePoolPreemptible: false
 
+  gke:managementAutoRepair: true
+  gke:managementAutoUpgrade: true
+
   gke:loggingService: ogging.googleapis.com/kubernetes
   gke:monitoringService: monitoring.googleapis.com/kubernetes
+
   istio:create: true
   
-  storage:create: true
+  storage:create: false
+
+  ar:create: true 
+  ar:githubRepo: "Clementine12M/MLOps"
   
   

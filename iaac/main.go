@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"mlops/gke"
+	"mlops/registry"
+
 	// gcpIAM "mlops/iam"
 
 	// "mlops/istio"
@@ -27,25 +29,57 @@ func main() {
 		if config.GetBool(ctx, "storage:create") {
 			storage.CreateObjectStorage(ctx, projectConfig)
 		}
-		err := CreateResources(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
-		if err != nil {
-			return fmt.Errorf("failed to create resources: %w", err)
+		if config.GetBool(ctx, "ar:create") {
+			registry.CreateArtifactRegistry(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+		}
+
+		if config.Get(ctx, "gke:target") == "management" {
+			err := CreateManagement(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+			if err != nil {
+				return fmt.Errorf("failed to create Management GKE resources end-to-end: %w", err)
+			}
+		} else {
+			err := CreateDeployment(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+			if err != nil {
+				return fmt.Errorf("failed to create Deployement GKE resources end-to-end: %w", err)
+			}
 		}
 		return nil
 	})
 }
 
-func CreateResources(ctx *pulumi.Context, projectConfig project.ProjectConfig, opts ...pulumi.ResourceOption) error {
+func CreateManagement(ctx *pulumi.Context, projectConfig project.ProjectConfig, opts ...pulumi.ResourceOption) error {
 	gcpNetwork, err := vpc.CreateVPC(ctx, projectConfig, opts...)
 	if err != nil {
 		return err
 	}
-	for _, cloudRegion := range projectConfig.EnabledRegions {
 
+	for _, cloudRegion := range projectConfig.EnabledRegions {
 		gcpSubnetwork, err := vpc.CreateVPCSubnet(ctx, projectConfig, cloudRegion, gcpNetwork.ID())
 		if err != nil {
 			return err
 		}
+
+		err = gke.CreateGKE(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CreateDeployment(ctx *pulumi.Context, projectConfig project.ProjectConfig, opts ...pulumi.ResourceOption) error {
+	gcpNetwork, err := vpc.CreateVPC(ctx, projectConfig, opts...)
+	if err != nil {
+		return err
+	}
+
+	for _, cloudRegion := range projectConfig.EnabledRegions {
+		gcpSubnetwork, err := vpc.CreateVPCSubnet(ctx, projectConfig, cloudRegion, gcpNetwork.ID())
+		if err != nil {
+			return err
+		}
+
 		err = gke.CreateGKE(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
 		if err != nil {
 			return err

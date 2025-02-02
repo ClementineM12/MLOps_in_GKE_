@@ -1,0 +1,46 @@
+name: Deploy Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      chart:
+        description: The chart to build
+        required: true
+        default: "kubeflow"
+        type: choice
+        options:
+          - kubeflow
+
+jobs:
+  deploy:
+    runs-on: [ ubuntu-latest ] 
+    permissions:
+      contents: read
+      id-token: write  # Needed for Workload Identity Federation
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Define chart version
+        id: define-chart-version
+        run: |
+          VERSION=$(yq .version helm/$CHART/Chart.yaml)
+          echo "CHART_VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+        env:
+          CHART: ${{ github.event.inputs.chart }}
+
+      - uses: google-github-actions/auth@v2
+        id: gcp-registry-login
+        with:
+          project_id: ${{ secrets.PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Package and push helm chart to GCP Artifact Registry
+        env:
+          REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
+          CHART: ${{ github.event.inputs.chart }}
+          VERSION: ${{ steps.define-chart-version.outputs.CHART_VERSION }}
+        run: |
+          helm package $CHART
+          helm push $CHART-$VERSION.tgz oci://$REGISTRY/helm

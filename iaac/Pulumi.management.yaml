@@ -1,6 +1,6 @@
 config:
   gcp:project: mlops-management-project
-  gcp:region: europe-west4
+  gcp:region: europe-west8
   
   project:prefix: mlll
 
@@ -14,6 +14,7 @@ config:
   gke:nodePoolDiskType: pd-standard
   gke:nodePoolMinNodeCount: 1
   gke:nodePoolMaxNodeCount: 3
+  gke:nodePoolInitialNodeCount: 1
   gke:nodePoolPreemptible: false
   
   gke:managementAutoRepair: true

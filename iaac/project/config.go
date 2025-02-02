@@ -13,6 +13,9 @@ func GenerateProjectConfig(
 ) ProjectConfig {
 
 	domain := config.Get(ctx, "project:domain")
+	// Validate
+	validateArtifactRegistryConfig(ctx)
+
 	return ProjectConfig{
 		ResourceNamePrefix: configureResourcePrefix(ctx),
 		ProjectId:          configureProjectId(ctx),
@@ -50,7 +53,7 @@ func configureResourcePrefix(
 			ctx.Log.Error(fmt.Sprintf("Prefix '%s' must be less than 5 characters in length.", resourceNamePrefix), nil)
 			return ""
 		}
-		fmt.Printf("\033[1;32m[INFO] - Prefix %s has been provided; All Google Cloud resource names will be prefixed.\n\033[0m", resourceNamePrefix)
+		fmt.Printf("\033[1;32m[INFO] - Prefix '%s' has been provided; All Google Cloud resource names will be prefixed.\n\033[0m", resourceNamePrefix)
 	}
 	return resourceNamePrefix
 }
@@ -105,11 +108,24 @@ func configureTarget(
 
 	target := config.Get(ctx, "gke:target")
 	if target == "" {
-		ctx.Log.Error("Target must be provided: set to either `deployment` or `management`.", nil)
+		ctx.Log.Error("Target must be provided: set to either 'deployment' or 'management'.", nil)
 	} else {
 		if target != "management" && target != "deployment" {
-			ctx.Log.Error("Target must be set to either `deployment` or `management`; Provide a valid target.", nil)
+			ctx.Log.Error("Target must be set to either 'deployment' or 'management'; Provide a valid target.", nil)
 		}
 	}
 	return target
+}
+
+func validateArtifactRegistryConfig(
+	ctx *pulumi.Context,
+) {
+
+	create := config.GetBool(ctx, "ar:create")
+	if create {
+		githubRepo := config.Get(ctx, "ar:githubRepo")
+		if githubRepo == "" {
+			ctx.Log.Error("Artifact Registry is enabled; provide a GitHub Repository configuration 'ar:githubRepo'.", nil)
+		}
+	}
 }

@@ -16,7 +16,7 @@ var gcpServices = map[string][]string{
 		"krmapihosting.googleapis.com",
 		"servicecontrol.googleapis.com",
 		"endpoints.googleapis.com",
-		"cloudbuild.googleapis.c",
+		"cloudbuild.googleapis.com",
 	},
 	"management": {
 		"krmapihosting.googleapis.com",
