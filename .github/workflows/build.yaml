@@ -18,7 +18,8 @@ jobs:
       - name: Define chart version
         id: define-chart-version
         run: |
-          echo "CHART_VERSION=${yq .version helm/kubeflow/Chart.yaml}" >> "$GITHUB_OUTPUT"
+          VERSION=$(yq e '.version' helm/kubeflow/Chart.yaml)
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
         id: gcp-login
@@ -30,7 +31,7 @@ jobs:
         env:
           REGISTRY: ${{ secrets.GCP_ARTIFACT_REGISTRY }}
           CHART: kubeflow
-          VERSION: ${{ steps.define-chart-version.outputs.CHART_VERSION }}
+          VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
         run: |
           helm package helm/$CHART/. --version $VERSION
           helm push $CHART-$VERSION.tgz oci://$REGISTRY
