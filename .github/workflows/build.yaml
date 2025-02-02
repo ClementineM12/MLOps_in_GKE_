@@ -24,8 +24,10 @@ jobs:
       - name: Define chart version
         id: define-chart-version
         run: |
-          VERSION=$(yq e '.version' $CHART_PATH/Chart.yaml)
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          KUBEFLOW_CORE_VERSION=$(yq e '.version' helm/kubeflow-core/Chart.yaml)
+          KUBEFLOW_VERSION=$(yq e '.version' helm/kubeflow/Chart.yaml)
+          echo "KUBEFLOW_CORE_VERSION=$KUBEFLOW_CORE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "KUBEFLOW_VERSION=$KUBEFLOW_VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
         id: auth
@@ -40,10 +42,14 @@ jobs:
         run: |
           gcloud auth configure-docker $REGION-docker.pkg.dev --access-token-file=${{steps.auth.outputs.credentials_file_path}}
 
-      - name: Package and push helm chart to GCP Artifact Registry
+      - name: Package and push helm charts to GCP Artifact Registry
         env:
-          VERSION: ${{ steps.define-chart-version.outputs.VERSION }}
+          KUBEFLOW_CORE_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_CORE_VERSION }}
+          KUBEFLOW_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_VERSION }}
         run: |
-          helm package $CHART_PATH/.
-          helm push kubeflow-$VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
+          helm package helm/kubeflow-core -d helm --version $(KUBEFLOW_CORE_VERSION)
+          helm package helm/kubeflow -d helm --version $(KUBEFLOW_VERSION)
+
+          helm push kubeflow-core-$KUBEFLOW_CORE_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
+          helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
 
