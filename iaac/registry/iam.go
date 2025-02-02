@@ -65,7 +65,7 @@ func createRegistryIAMMember(
 	// Give the service account permissions to push to Artifact Registry
 	_, err := projects.NewIAMMember(ctx, resourceName, &projects.IAMMemberArgs{
 		Project: pulumi.String(projectConfig.ProjectId),
-		Role:    pulumi.String("roles/compute.viewer"),
+		Role:    pulumi.String("roles/artifactregistry.writer"),
 		Member:  member,
 	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount}))
 

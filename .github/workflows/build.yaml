@@ -29,9 +29,9 @@ jobs:
           service_account: 'github-svc@mlops-development-project.iam.gserviceaccount.com'
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
 
-      # - name: Verify Authentication
-      #   run: |
-      #     gcloud auth login --cred-file=${{steps.auth.outputs.credentials_file_path}}
+      - name: Verify Authentication
+        run: |
+          gcloud auth configure-docker europe-west8-docker.pkg.dev --access-token-file=${{steps.auth.outputs.credentials_file_path}}
 
       - name: Package and push helm chart to GCP Artifact Registry
         env:
