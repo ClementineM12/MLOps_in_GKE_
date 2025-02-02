@@ -22,11 +22,14 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
-        id: gcp-login
+        id: auth
         with:
           project_id: ${{ secrets.PROJECT_ID }}
           workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
-      
+
+      - name: set crdential_file
+        run: gcloud auth login --cred-file=${{steps.auth.outputs.credentials_file_path}}
+
       # - name: Debug GCP Authentication
       #   run: |
       #     gcloud artifacts repositories list --project=${{ secrets.PROJECT_ID }}
