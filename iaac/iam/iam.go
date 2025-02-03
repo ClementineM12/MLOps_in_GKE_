@@ -2,7 +2,7 @@ package iam
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/projects"
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/serviceaccount"
@@ -12,7 +12,7 @@ import (
 // createServiceAccount handles the creation of a Service Account
 func createServiceAccount(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	svc *svc,
 ) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
@@ -32,7 +32,7 @@ func createServiceAccount(
 // If svc selected is AutoNEG => This Role allows the AutoNeg CRD to link the Istio Ingress Gateway Service Ip to Load Balancer NEGs ( GCLB )
 func createIAMRole(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	svc *svc,
 ) (*projects.IAMCustomRole, error) {
 
@@ -50,7 +50,7 @@ func createIAMRole(
 // CreateIAMRoleBinding creates the IAM Role Binding to link to the Service Account to Custom Role.
 func createIAMRoleBinding(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	svc *svc,
 	gcpIAMRole *projects.IAMCustomRole,
 	gcpServiceAccount *serviceaccount.Account,

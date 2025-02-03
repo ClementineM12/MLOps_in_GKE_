@@ -33,7 +33,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -44,7 +44,7 @@ import (
 // It ensures all necessary dependencies for the resources are set, including the SSL certificate and backend service.
 func configureSSLCertificate(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpBackendService *compute.BackendService,
 	gcpGlobalAddress *compute.GlobalAddress,
 	opts ...pulumi.ResourceOption,
@@ -74,7 +74,7 @@ func configureSSLCertificate(
 // This function requires the configuration of dependencies like the backend service to ensure it is correctly created before being used in the load balancer setup.
 func createManagedSSLCertificate(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.ManagedSslCertificate, error) {
 
@@ -98,7 +98,7 @@ func createManagedSSLCertificate(
 // This function helps define the routing behavior for SSL/TLS traffic, ensuring secure requests are directed to the correct backend.
 func createLoadbalancerURLMapHTTPS(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpBackendService *compute.BackendService,
 ) (*compute.URLMap, error) {
 
@@ -117,7 +117,7 @@ func createLoadbalancerURLMapHTTPS(
 // The HTTPS Proxy is essential for directing traffic securely through the Global Load Balancer and to the proper backend service.
 func createLoadbalancerHTTPSProxy(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpGLBURLMapHTTPS *compute.URLMap,
 	gcpGLBManagedSSLCert *compute.ManagedSslCertificate,
 ) (*compute.TargetHttpsProxy, error) {

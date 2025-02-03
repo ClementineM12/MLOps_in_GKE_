@@ -2,7 +2,7 @@ package registry
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/artifactregistry"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -11,12 +11,12 @@ import (
 // createRegistry gives the Service Account permissions to push to Artifact Registry
 func createRegistry(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*artifactregistry.Repository, error) {
 
 	var region string
-	if len(project.CloudRegions) > 1 {
+	if len(global.CloudRegions) > 1 {
 		region = projectConfig.EnabledRegions[0].Region
 	} else {
 		region = "europe"

@@ -2,7 +2,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 	"strings"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
@@ -13,7 +13,7 @@ import (
 // to the appropriate Target Proxy in a Global Load Balancer (GLB).
 func createLoadBalancerForwardingRule(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpGlobalAddress *compute.GlobalAddress,
 	gcpGLBTargetHTTPProxy *compute.TargetHttpProxy,
 	gcpGLBTargetHTTPSProxy *compute.TargetHttpsProxy,

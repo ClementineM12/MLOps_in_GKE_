@@ -27,7 +27,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -38,7 +38,7 @@ import (
 // This function also sets up the health checks used by the backend service.
 func createLoadBalancerBackendService(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.BackendService, error) {
 
@@ -59,7 +59,7 @@ func createLoadBalancerBackendService(
 // through TCP connections on a specified port.
 func createLoadBalancerTCPHealthChecks(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.HealthCheck, error) {
 
@@ -85,7 +85,7 @@ func createLoadBalancerTCPHealthChecks(
 // It does not directly handle traffic but instead controls how traffic is distributed to backend instances or groups.
 func createLoadbalancerBackendService(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpGLBTCPHealthCheck pulumi.StringInput,
 ) (*compute.BackendService, error) {
 

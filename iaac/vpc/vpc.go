@@ -29,7 +29,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -46,7 +46,7 @@ var (
 // Also, it creates firewall rules for health checks and inbound traffic via the createFirewallRuleHealthChecks and createFirewallInbound functions respectively.
 func createVPC(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.Network, error) {
 	gcpVPCNetwork, err := createVPCNetwork(ctx, projectConfig, opts...)
@@ -72,7 +72,7 @@ func createVPC(
 // createVPCNetwork creates a VPC Network in Google Cloud.
 func createVPCNetwork(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.Network, error) {
 
@@ -91,7 +91,7 @@ func createVPCNetwork(
 // The allowed source ranges are from IP blocks 35.191.0.0/16 and 130.211.0.0/22, which are Google Cloud’s health check sources (https://cloud.google.com/load-balancing/docs/health-check-concepts#ip-ranges).
 func createFirewallRuleHealthChecks(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpNetwork pulumi.StringInput,
 ) (*compute.Firewall, error) {
 
@@ -120,7 +120,7 @@ func createFirewallRuleHealthChecks(
 // typically used for load balancer communication with applications within the VPC.
 func createFirewallInbound(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpNetwork pulumi.StringInput,
 ) (*compute.Firewall, error) {
 

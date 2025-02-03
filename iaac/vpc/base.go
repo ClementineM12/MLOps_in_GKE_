@@ -7,7 +7,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -19,7 +19,7 @@ import (
 // This enables a secure and scalable infrastructure for cloud-based applications.
 func CreateVPCResources(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.Network, *compute.BackendService, error) {
 
@@ -53,8 +53,8 @@ func CreateVPCResources(
 // It enables Private IP Google Access, which allows instances in the subnet to access Google APIs and services over private IPs.
 func CreateVPCSubnet(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	region project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	region global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 ) (*compute.Subnetwork, error) {
 

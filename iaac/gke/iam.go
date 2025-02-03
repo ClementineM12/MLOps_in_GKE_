@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 	"os/exec"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/iam"
@@ -20,7 +20,7 @@ import (
 // gkeIAM configures the GKE IAM permissions and Config Connector
 func gkeConfigConnectorIAM(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 ) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	// Create IAM Service Account
@@ -49,7 +49,7 @@ func gkeConfigConnectorIAM(
 // CreateWorkloadIdentityPool creates Google Cloud Workload Identity Pool for GKE
 func CreateWorkloadIdentityPool(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 ) error {
 
 	resourceName := fmt.Sprintf("%s-gke-wip", projectConfig.ResourceNamePrefix)
@@ -70,7 +70,7 @@ func CreateWorkloadIdentityPool(
 
 func createConfigConnectorServiceAccount(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 ) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	resourceName := fmt.Sprintf("%s-cc-svc", projectConfig.ResourceNamePrefix)
@@ -93,7 +93,7 @@ func createConfigConnectorServiceAccount(
 // createIAMRoleBinding is a generic function to create IAM role bindings for both projects and service accounts
 func createIAMRoleBinding(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	resourceNameSuffix string,
 	role string,
 	serviceAccount *serviceaccount.Account, // Optional for SA-specific roles
@@ -135,7 +135,7 @@ func createIAMRoleBinding(
 
 func createNamespace(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	namespaceName string,
 	k8sProvider *kubernetes.Provider,
 ) error {
@@ -157,7 +157,7 @@ func createNamespace(
 
 func applyResource(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	serviceAccountMember pulumi.StringArrayOutput,
 	k8sProvider *kubernetes.Provider,
 ) error {

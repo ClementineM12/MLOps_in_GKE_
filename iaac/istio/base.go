@@ -2,7 +2,7 @@ package istio
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
@@ -16,8 +16,8 @@ import (
 // This function manages the setup of Istio in a Kubernetes cluster using Helm charts and dependencies.
 func DeployIstio(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpGKENodePool *container.NodePool,
 	gcpBackendService *compute.BackendService,

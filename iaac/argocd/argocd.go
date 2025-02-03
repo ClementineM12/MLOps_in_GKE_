@@ -2,7 +2,7 @@ package argocd
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
@@ -20,7 +20,7 @@ var (
 
 func createNamespace(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 ) (*corev1.Namespace, error) {
 
@@ -41,7 +41,7 @@ func createNamespace(
 // a pointer to the Helm chart resource or an error.
 func DeployArgoCD(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 ) (*helm.Chart, error) {
 

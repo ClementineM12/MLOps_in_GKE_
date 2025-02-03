@@ -2,7 +2,7 @@ package registry
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -11,7 +11,7 @@ import (
 // CreateArtifactRegistry sets up an Artifact Registry and Workload Identity Federation for GitHub Actions
 func CreateArtifactRegistry(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) error {
 

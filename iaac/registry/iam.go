@@ -6,7 +6,7 @@ package registry
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/iam"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/projects"
@@ -16,7 +16,7 @@ import (
 
 func createGithubServiceAccount(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 ) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	resourceName := fmt.Sprintf("%s-github-svc", projectConfig.ResourceNamePrefix)
@@ -35,7 +35,7 @@ func createGithubServiceAccount(
 
 func createGithubServiceAccountIAMBinding(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	serviceAccount pulumi.StringInput,
 	wifPool *iam.WorkloadIdentityPool,
 	githubRepo string,
@@ -56,7 +56,7 @@ func createGithubServiceAccountIAMBinding(
 
 func createRegistryIAMMember(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	serviceAccount *serviceaccount.Account,
 	serviceAccountMember pulumi.StringArrayOutput,
 ) error {
@@ -76,7 +76,7 @@ func createRegistryIAMMember(
 
 func createWorkloadIdentityPool(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 ) (*iam.WorkloadIdentityPool, error) {
 
 	resourceName := fmt.Sprintf("%s-github-wip", projectConfig.ResourceNamePrefix)
@@ -95,7 +95,7 @@ func createWorkloadIdentityPool(
 
 func createWorkloadIdentityPoolProvider(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	wifPool *iam.WorkloadIdentityPool,
 	githubRepo string,
 ) (*iam.WorkloadIdentityPoolProvider, error) {

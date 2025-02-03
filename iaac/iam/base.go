@@ -2,7 +2,7 @@ package iam
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
@@ -15,7 +15,7 @@ import (
 // CreateServiceAccount creates a Google Cloud Service Account
 func CreateServiceAccount(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	target string,
 ) *serviceaccount.Account {
 
@@ -48,9 +48,9 @@ func CreateServiceAccount(
 
 func ConfigurateAutoNeg(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpServiceAccountAutoNeg pulumi.StringInput,
-	cloudRegion *project.CloudRegion,
+	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpGKENodePool *container.NodePool,
 	helmIstioBase *helm.Release,

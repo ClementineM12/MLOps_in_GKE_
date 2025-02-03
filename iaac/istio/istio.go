@@ -2,7 +2,7 @@ package istio
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
@@ -22,7 +22,7 @@ const (
 func createIstioBase(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
-	cloudRegion project.CloudRegion,
+	cloudRegion global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 ) (*helm.Release, error) {
 
@@ -50,7 +50,7 @@ func createIstioBase(
 func createIstiod(
 	ctx *pulumi.Context,
 	resourceNamePrefix string,
-	cloudRegion project.CloudRegion,
+	cloudRegion global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	helmIstioBase *helm.Release,
 	gcpGKENodePool *container.NodePool,
@@ -77,8 +77,8 @@ func createIstiod(
 // such as enabling Network Endpoint Groups (NEG) and specifying an internal load balancer type.
 func createIstioIngressGateway(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	helmIstioBase *helm.Release,
 	helmIstioD *helm.Release,

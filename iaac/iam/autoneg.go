@@ -2,7 +2,7 @@ package iam
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
@@ -15,8 +15,8 @@ import (
 // Deploy Cluster Ops components for GKE AutoNeg
 func autoNegDeployClusterOps(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion *project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpGKENodePool *container.NodePool,
 	helmIstioBase *helm.Release,
@@ -59,8 +59,8 @@ func autoNegDeployClusterOps(
 // autoNegServiceAccountBind binds the Kubernetes AutoNeg Service Account to Workload Identity
 func autoNegServiceAccountBind(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion *project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpGKENodePool *container.NodePool,
 	helmClusterOps *helm.Chart,

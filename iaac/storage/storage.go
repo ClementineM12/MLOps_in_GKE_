@@ -2,7 +2,7 @@ package storage
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/storage"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -11,7 +11,7 @@ import (
 // SetupObjectStorage creates a GCS bucket and returns the outputs
 func CreateObjectStorage(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 ) {
 
 	var bucketLocation string

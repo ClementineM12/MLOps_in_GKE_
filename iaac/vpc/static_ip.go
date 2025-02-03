@@ -2,7 +2,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -18,7 +18,7 @@ var (
 // This IP address will be external and IPv4-based, specifically designed for load balancing.
 func createLoadBalancerStaticIP(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	opts ...pulumi.ResourceOption,
 ) (*compute.GlobalAddress, error) {
 

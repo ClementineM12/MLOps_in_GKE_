@@ -2,7 +2,7 @@ package gke
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
@@ -16,8 +16,8 @@ import (
 func createGKE(
 	ctx *pulumi.Context,
 	config *ClusterConfig,
-	projectConfig project.ProjectConfig,
-	cloudRegion *project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion *global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 	gcpSubnetwork pulumi.StringInput,
 ) (*container.Cluster, *kubernetes.Provider, error) {
@@ -68,8 +68,8 @@ func createGKE(
 func createGKENodePool(
 	ctx *pulumi.Context,
 	config *ClusterConfig,
-	projectConfig project.ProjectConfig,
-	cloudRegion *project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion *global.CloudRegion,
 	clusterID pulumi.StringInput,
 	gcpServiceAccount *serviceaccount.Account,
 ) (*container.NodePool, error) {

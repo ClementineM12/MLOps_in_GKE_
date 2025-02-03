@@ -28,7 +28,7 @@ package vpc
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -39,7 +39,7 @@ import (
 // It also sets up any necessary routing rules, including redirects and path-based routing.
 func createLoadBalancerURLMapHTTP(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpGlobalAddress *compute.GlobalAddress,
 	gcpBackendService *compute.BackendService,
 ) error {
@@ -73,7 +73,7 @@ func createLoadBalancerURLMapHTTP(
 // This URL map is used when no specific domain is provided, and all traffic is forwarded to the default backend service.
 func createLoadBalancerURLMapHTTPWithNoDomain(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpBackendService *compute.BackendService,
 ) (*compute.URLMap, error) {
 
@@ -91,7 +91,7 @@ func createLoadBalancerURLMapHTTPWithNoDomain(
 // The URL map routes traffic based on the provided domain and any additional path-based routing rules.
 func createLoadBalancerURLMapHTTPWithDomain(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpBackendService *compute.BackendService,
 ) (*compute.URLMap, error) {
 
@@ -136,7 +136,7 @@ func createLoadBalancerURLMapHTTPWithDomain(
 // The HTTP proxy is used to route HTTP requests to the appropriate URL map for further processing.
 func createLoadBalancerHTTPProxy(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
+	projectConfig global.ProjectConfig,
 	gcpGLBURLMapHTTP *compute.URLMap,
 ) (*compute.TargetHttpProxy, error) {
 

@@ -1,4 +1,4 @@
-package project
+package global
 
 // Recommended [https://googlecloudplatform.github.io/kubeflow-gke-docs/dev/docs/deploy/project-setup/#setting-up-a-project]
 var gcpServices = map[string][]string{

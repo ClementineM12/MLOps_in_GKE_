@@ -5,9 +5,9 @@ import (
 
 	"mlops/argocd"
 	"mlops/gke"
+	"mlops/global"
 	gcpIAM "mlops/iam"
 	"mlops/istio"
-	"mlops/project"
 	"mlops/registry"
 	"mlops/storage"
 	"mlops/vpc"
@@ -18,8 +18,8 @@ import (
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
-		projectConfig := project.GenerateProjectConfig(ctx)
-		gcpDependencies := project.EnableGCPServices(ctx, projectConfig)
+		projectConfig := global.GenerateProjectConfig(ctx)
+		gcpDependencies := global.EnableGCPServices(ctx, projectConfig)
 
 		if config.GetBool(ctx, "storage:create") {
 			storage.CreateObjectStorage(ctx, projectConfig)
@@ -36,7 +36,7 @@ func main() {
 	})
 }
 
-func CreateProjectResources(ctx *pulumi.Context, projectConfig project.ProjectConfig, opts ...pulumi.ResourceOption) error {
+func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig, opts ...pulumi.ResourceOption) error {
 	// -------------------------- IAM ------------------------------
 	gcpServiceAccountAutoNeg := gcpIAM.CreateServiceAccount(ctx, projectConfig, "AutoNEG")
 	// -------------------------- VPC -----------------------------

@@ -2,7 +2,7 @@ package gke
 
 import (
 	"fmt"
-	"mlops/project"
+	"mlops/global"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
@@ -14,8 +14,8 @@ import (
 // The Kubernetes provider is used to interact with the created GKE cluster.
 func CreateGKEResources(
 	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion *project.CloudRegion,
+	projectConfig global.ProjectConfig,
+	cloudRegion *global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 	gcpSubnetwork pulumi.StringInput,
 ) (*kubernetes.Provider, *container.NodePool, error) {

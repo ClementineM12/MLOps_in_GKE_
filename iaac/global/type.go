@@ -1,4 +1,4 @@
-package project
+package global
 
 import (
 	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
