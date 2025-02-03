@@ -1,5 +1,9 @@
 package registry
 
+// Package registry provides functions to create and configure a GitHub Service Account,
+// set up Workload Identity Federation (WIF) bindings, and assign IAM roles for
+// accessing Google Cloud services, such as Artifact Registry.
+
 import (
 	"fmt"
 	"mlops/project"
@@ -16,8 +20,6 @@ func createGithubServiceAccount(
 ) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	resourceName := fmt.Sprintf("%s-github-svc", projectConfig.ResourceNamePrefix)
-
-	// Create a Service Account
 	serviceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
 		AccountId:   pulumi.String("github-svc"),
 		DisplayName: pulumi.String("GitHub Actions Service Account"),
@@ -70,4 +72,53 @@ func createRegistryIAMMember(
 	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount}))
 
 	return err
+}
+
+func createWorkloadIdentityPool(
+	ctx *pulumi.Context,
+	projectConfig project.ProjectConfig,
+) (*iam.WorkloadIdentityPool, error) {
+
+	resourceName := fmt.Sprintf("%s-github-wip", projectConfig.ResourceNamePrefix)
+	wifPool, err := iam.NewWorkloadIdentityPool(ctx, resourceName, &iam.WorkloadIdentityPoolArgs{
+		Project:                pulumi.String(projectConfig.ProjectId),
+		Description:            pulumi.String("Github - Workload Identity Pool"),
+		Disabled:               pulumi.Bool(false),
+		DisplayName:            pulumi.String("GitHub Workload Identity Pool"),
+		WorkloadIdentityPoolId: pulumi.String(fmt.Sprintf("%s-github-pool", projectConfig.ResourceNamePrefix)),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return wifPool, nil
+}
+
+func createWorkloadIdentityPoolProvider(
+	ctx *pulumi.Context,
+	projectConfig project.ProjectConfig,
+	wifPool *iam.WorkloadIdentityPool,
+	githubRepo string,
+) (*iam.WorkloadIdentityPoolProvider, error) {
+
+	resourceName := fmt.Sprintf("%s-github-wip-provider", projectConfig.ResourceNamePrefix)
+	wifProvider, err := iam.NewWorkloadIdentityPoolProvider(ctx, resourceName, &iam.WorkloadIdentityPoolProviderArgs{
+		Project: pulumi.String(projectConfig.ProjectId),
+		// Setting this to wifPool.ID() causes error with double ID
+		WorkloadIdentityPoolId:         wifPool.WorkloadIdentityPoolId,
+		WorkloadIdentityPoolProviderId: pulumi.String("github-wip-provider"),
+		DisplayName:                    pulumi.String("GitHub Actions Identity Provider"),
+		AttributeMapping: pulumi.StringMap{
+			"attribute.actor":      pulumi.String("assertion.actor"),
+			"google.subject":       pulumi.String("assertion.sub"),
+			"attribute.repository": pulumi.String("assertion.repository"),
+		},
+		AttributeCondition: pulumi.String(fmt.Sprintf(`attribute.repository=="%s"`, githubRepo)),
+		Oidc: &iam.WorkloadIdentityPoolProviderOidcArgs{
+			IssuerUri: pulumi.String("https://token.actions.githubusercontent.com"),
+		},
+	}, pulumi.DependsOn([]pulumi.Resource{wifPool}))
+	if err != nil {
+		return nil, err
+	}
+	return wifProvider, nil
 }

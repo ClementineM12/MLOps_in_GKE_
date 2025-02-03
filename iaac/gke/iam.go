@@ -1,12 +1,5 @@
 package gke
 
-// https://cloud.google.com/config-connector/docs/how-to/install-upgrade-uninstall#creating_a_new_cluster_with_the_enabled
-// * IAM Service Account creation
-// * IAM Role assignments
-// * Workload Identity binding
-// * Namespace creation and annotation
-// * Config Connector installation in cluster mode
-
 import (
 	"bytes"
 	"errors"

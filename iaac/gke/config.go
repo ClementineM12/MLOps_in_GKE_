@@ -5,6 +5,10 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
 
+var (
+	GKEDefaultCIDR = "10.0.0.0/16"
+)
+
 // Configuration reads and applies configuration values for the GKE cluster
 func Configuration(
 	ctx *pulumi.Context,
@@ -25,13 +29,13 @@ func Configuration(
 		MachineType:            config.Get(ctx, "gke:nodePoolMachineType"),
 		DiskSizeGb:             config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
 		DiskType:               config.Get(ctx, "gke:nodePoolDiskType"),
-		MinMasterVersion:       gkeNodePoolSpecificConfig[target].MinMasterVersion,
+		MinMasterVersion:       GKENodePoolSpecificConfig[target].MinMasterVersion,
 		MinNodeCount:           config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
 		MaxNodeCount:           config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
 		Preemptible:            config.GetBool(ctx, "gke:nodePoolPreemptible"),
-		OauthScopes:            gkeNodePoolSpecificConfig[target].OauthScopes,
-		WorkloadMetadataConfig: gkeNodePoolSpecificConfig[target].WorkloadMetadataConfig,
-		Metadata:               gkeNodePoolSpecificConfig[target].Metadata,
+		OauthScopes:            GKENodePoolSpecificConfig[target].OauthScopes,
+		WorkloadMetadataConfig: GKENodePoolSpecificConfig[target].WorkloadMetadataConfig,
+		Metadata:               GKENodePoolSpecificConfig[target].Metadata,
 	}
 
 	management := ManagementConfig{
@@ -68,7 +72,7 @@ func Configuration(
 		clusterConfig.Name = "default"
 	}
 	if clusterConfig.Cidr == "" {
-		clusterConfig.Cidr = "10.0.0.0/16"
+		clusterConfig.Cidr = GKEDefaultCIDR
 	}
 
 	return clusterConfig

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"mlops/project"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/container"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -15,28 +15,6 @@ const (
 	IstioBaseChart = "base"
 	IstiodChart    = "istiod"
 )
-
-// InstallIstioHelm installs the Istio Service Mesh using Helm on a Kubernetes cluster.
-// It installs the Istio base components, followed by the Istiod service, and returns the corresponding Helm releases for both.
-// This function manages the setup of Istio in a Kubernetes cluster using Helm charts and dependencies.
-func InstallIstioHelm(
-	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion project.CloudRegion,
-	k8sProvider *kubernetes.Provider,
-	gcpGKENodePool *container.NodePool,
-) (*helm.Release, *helm.Release, error) {
-	resourceNamePrefix := projectConfig.ResourceNamePrefix
-	helmIstioBase, err := createIstioBase(ctx, resourceNamePrefix, cloudRegion, k8sProvider)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create Istio Service Mesh Base: %w", err)
-	}
-	helmIstioD, err := createIstiod(ctx, resourceNamePrefix, cloudRegion, k8sProvider, helmIstioBase, gcpGKENodePool)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating Istio Base: %w", err)
-	}
-	return helmIstioBase, helmIstioD, nil
-}
 
 // createIstioBase installs the base components of the Istio Service Mesh using Helm.
 // It pulls the Istio base chart from a public Helm repository and deploys it into the "istio-system" namespace.
@@ -93,11 +71,11 @@ func createIstiod(
 	return helmIstioD, err
 }
 
-// CreateIstioIngressGateway installs the Istio Ingress Gateway using Helm on the Kubernetes cluster.
+// createIstioIngressGateway installs the Istio Ingress Gateway using Helm on the Kubernetes cluster.
 // The Ingress Gateway provides external access to services within the Istio service mesh.
 // This function configures the Ingress Gateway with specific service annotations for load balancing in a GKE environment,
 // such as enabling Network Endpoint Groups (NEG) and specifying an internal load balancer type.
-func CreateIstioIngressGateway(
+func createIstioIngressGateway(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	cloudRegion project.CloudRegion,
@@ -107,6 +85,7 @@ func CreateIstioIngressGateway(
 	gcpGKENodePool *container.NodePool,
 	gcpBackendService *compute.BackendService,
 ) error {
+
 	resourceName := fmt.Sprintf("%s-istio-igw-%s", projectConfig.ResourceNamePrefix, cloudRegion.Region)
 	_, err := helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
 		Name:        pulumi.String("istio-ingressgateway"),

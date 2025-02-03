@@ -1,16 +1,50 @@
 package vpc
 
+// Package vpc provides functionality for creating and managing a Virtual Private Cloud (VPC)
+// in Google Cloud Platform (GCP) using Pulumi. It includes the creation of a VPC network,
+// as well as associated firewall rules to manage traffic flow.
+//
+// The resources created in this package include:
+//
+// 1. **VPC Network (`createVPCNetwork`)**:
+//    - Creates a custom GCP Virtual Private Cloud (VPC) network with subnet auto-creation disabled.
+//    - Ensures network segmentation and isolation for workloads.
+//
+// 2. **Firewall Rule for Health Checks (`createFirewallRuleHealthChecks`)**:
+//    - Allows inbound TCP traffic on ports 80, 8080, and 443.
+//    - Permits connections from Google's health check IP ranges (35.191.0.0/16, 130.211.0.0/22).
+//    - Ensures that Google-managed services (such as Load Balancers) can verify the health of
+//      services within the VPC.
+//
+// 3. **Firewall Rule for Inbound Traffic (`createFirewallInbound`)**:
+//    - Allows inbound TCP traffic on ports 80, 8080, and 443 from any source (0.0.0.0/0).
+//    - Primarily used for enabling external access to applications deployed inside the VPC.
+//    - Uses `gke-app-access` as a target tag to selectively allow traffic to instances
+//      that match this tag.
+//
+// These resources are intended to facilitate the deployment of cloud-native applications,
+// ensuring secure network communication while enabling scalability and health monitoring.
+//
+// Docs: https://cloud.google.com/load-balancing/docs/https/setup-global-ext-https-external-backend
+
 import (
 	"fmt"
 	"mlops/project"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/compute"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-// CreateVPC Function is function is responsible for the creation of a VPC Network using the createVPCNetwork function.
+var (
+	GoogleCloudIPRange = pulumi.StringArray{
+		pulumi.String("35.191.0.0/16"),
+		pulumi.String("130.211.0.0/22"),
+	}
+)
+
+// createVPC Function is function is responsible for the creation of a VPC Network using the createVPCNetwork function.
 // Also, it creates firewall rules for health checks and inbound traffic via the createFirewallRuleHealthChecks and createFirewallInbound functions respectively.
-func CreateVPC(
+func createVPC(
 	ctx *pulumi.Context,
 	projectConfig project.ProjectConfig,
 	opts ...pulumi.ResourceOption,
@@ -21,11 +55,11 @@ func CreateVPC(
 	}
 	firewallHealthCheck, err := createFirewallRuleHealthChecks(ctx, projectConfig, gcpVPCNetwork.ID())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create firewall rule for Health checks: %w", err)
 	}
 	firewallInbound, err := createFirewallInbound(ctx, projectConfig, gcpVPCNetwork.ID())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create firewall rule for Inbound traffic: %w", err)
 	}
 
 	// Ensure CreateVPC does not return before firewall rules are applied
@@ -77,10 +111,7 @@ func createFirewallRuleHealthChecks(
 				},
 			},
 		},
-		SourceRanges: pulumi.StringArray{
-			pulumi.String("35.191.0.0/16"),
-			pulumi.String("130.211.0.0/22"),
-		},
+		SourceRanges: GoogleCloudIPRange,
 	})
 	return firewallHealthCheck, err
 }
@@ -117,27 +148,4 @@ func createFirewallInbound(
 		},
 	})
 	return firewallInbound, err
-}
-
-// CreateVPCSubnet reates a subnetwork (subnet) within the VPC.
-// The subnet is created in a specific region defined by CloudRegion and the network is linked to the VPC network.
-// It enables Private IP Google Access, which allows instances in the subnet to access Google APIs and services over private IPs.
-func CreateVPCSubnet(
-	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	region project.CloudRegion,
-	gcpNetwork pulumi.StringInput,
-) (*compute.Subnetwork, error) {
-
-	resourceName := fmt.Sprintf("%s-vpc-subnet-%s", projectConfig.ResourceNamePrefix, region.Region)
-	gcpSubnetwork, err := compute.NewSubnetwork(ctx, resourceName, &compute.SubnetworkArgs{
-		Project:               pulumi.String(projectConfig.ProjectId),
-		Name:                  pulumi.String(resourceName),
-		Description:           pulumi.String(fmt.Sprintf("VPC Subnet - %s", region.Region)),
-		IpCidrRange:           pulumi.String(region.SubnetIp),
-		Region:                pulumi.String(region.Region),
-		Network:               gcpNetwork,
-		PrivateIpGoogleAccess: pulumi.Bool(true),
-	})
-	return gcpSubnetwork, err
 }

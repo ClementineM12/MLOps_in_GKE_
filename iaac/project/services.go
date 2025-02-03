@@ -12,6 +12,7 @@ func EnableGCPServices(
 	ctx *pulumi.Context,
 	projectConfig ProjectConfig,
 ) []pulumi.Resource {
+
 	var gcpDependencies []pulumi.Resource
 
 	for _, service := range gcpServices[projectConfig.Target] {

@@ -23,8 +23,8 @@ func createNamespace(
 	projectConfig project.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 ) (*corev1.Namespace, error) {
-	resourceName := fmt.Sprintf("%s-argocd-namespace", projectConfig.ResourceNamePrefix)
 
+	resourceName := fmt.Sprintf("%s-argocd-namespace", projectConfig.ResourceNamePrefix)
 	namespace, err := corev1.NewNamespace(ctx, resourceName, &corev1.NamespaceArgs{
 		Metadata: &metav1.ObjectMetaArgs{
 			Name: pulumi.String(argocdNamespace),
@@ -49,21 +49,19 @@ func DeployArgoCD(
 	if err != nil {
 		return nil, err
 	}
-
-	values, err := getValues(argocdValuesPath)
+	_, err = getValues(argocdValuesPath)
 	if err != nil {
 		return nil, err
 	}
 
 	resourceName := fmt.Sprintf("%s-argocd", projectConfig.ResourceNamePrefix)
-
 	chart, err := helm.NewChart(ctx, resourceName, helm.ChartArgs{
 		Chart:   pulumi.String("argo-cd"),
 		Version: pulumi.String(argocdHelmChartVersion),
 		FetchArgs: helm.FetchArgs{
 			Repo: pulumi.String(argocdHelm),
 		},
-		Values:    values,
+		// Values:    values,
 		Namespace: namespace.ID(),
 	},
 		pulumi.Provider(k8sProvider),

@@ -9,40 +9,6 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-// CreateServiceAccount creates a Google Cloud Service Account
-func CreateServiceAccount(
-	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	target string,
-) *serviceaccount.Account {
-
-	// Retrieve the corresponding service configuration from the map
-	selectedSVC, found := SVC[target]
-	if !found {
-		ctx.Log.Error(fmt.Sprintf("service '%s' not found", target), nil)
-		return nil
-	}
-
-	gcpServiceAccount, serviceAccountMember, err := createServiceAccount(ctx, projectConfig, &selectedSVC)
-	if err != nil {
-		ctx.Log.Error(fmt.Sprintf("failed to create IAM service account: %s", err), nil)
-		return nil
-	}
-	if selectedSVC.createRole {
-		gcpIAMRole, err := createIAMRole(ctx, projectConfig, &selectedSVC)
-		if err != nil {
-			ctx.Log.Error(fmt.Sprintf("IAM Role: %s", err), nil)
-			return nil
-		}
-		_, err = createIAMRoleBinding(ctx, projectConfig, &selectedSVC, gcpIAMRole, gcpServiceAccount, serviceAccountMember)
-		if err != nil {
-			ctx.Log.Error(fmt.Sprintf("IAM Role Binding: %s", err), nil)
-			return nil
-		}
-	}
-	return gcpServiceAccount
-}
-
 // createServiceAccount handles the creation of a Service Account
 func createServiceAccount(
 	ctx *pulumi.Context,
@@ -100,23 +66,3 @@ func createIAMRoleBinding(
 
 	return gcpIAMRoleBinding, err
 }
-
-// Bind Kubernetes AutoNeg Service Account to Workload Identity
-// func bindIAMRoleToSVC(
-// 	ctx *pulumi.Context,
-// 	projectConfig project.ProjectConfig,
-// 	cloudRegion *vpc.CloudRegion,
-// 	gcpServiceAccountAutoNeg
-// ) {
-// 	resourceName := fmt.Sprintf("%s-iam-svc-k8s-%s", projectConfig.ResourceNamePrefix, cloudRegion.Region)
-// 	_, err := serviceaccount.NewIAMBinding(ctx, resourceName, &serviceaccount.IAMBindingArgs{
-// 		ServiceAccountId: gcpServiceAccountAutoNeg.Name,
-// 		Role:             pulumi.String("roles/iam.workloadIdentityUser"),
-// 		Members: pulumi.StringArray{
-// 			pulumi.String(fmt.Sprintf("serviceAccount:%s.svc.id.goog[autoneg-system/autoneg-controller-manager]", projectConfig.ProjectId)),
-// 		},
-// 	}, pulumi.Provider(k8sProvider), pulumi.DependsOn([]pulumi.Resource{gcpGKENodePool, helmClusterOps}), pulumi.Parent(gcpGKENodePool))
-// 	if err != nil {
-// 		return err
-// 	}
-// }

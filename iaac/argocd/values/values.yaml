@@ -1,20 +1,5 @@
 ## Argo CD configuration
 ## Ref: https://github.com/argoproj/argo-cd
-##
-
-# -- Provide a name in place of `argocd`
-nameOverride: argocd
-# -- String to fully override `"argo-cd.fullname"`
-fullnameOverride: ""
-# -- Override the namespace
-# @default -- `.Release.Namespace`
-namespaceOverride: ""
-# -- Override the Kubernetes version, which is used to evaluate certain manifests
-kubeVersionOverride: ""
-# Override APIVersions
-# If you want to template helm charts but cannot access k8s API server
-# you can set api versions here
-apiVersionOverrides: {}
 
 # -- Create aggregated roles that extend existing cluster roles to interact with argo-cd resources
 ## Ref: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles
@@ -32,25 +17,13 @@ crds:
   # -- Install and upgrade CRDs
   install: true
   # -- Keep CRDs on chart uninstall
-  keep: true
-  # -- Annotations to be added to all CRDs
-  annotations: {}
-  # -- Addtional labels to be added to all CRDs
-  additionalLabels: {}
+  keep: false
 
 ## Globally shared configuration
 global:
   # -- Default domain used by all components
   ## Used for ingresses, certificates, SSO, notifications, etc.
-  domain: argocd.example.com
-
-  # -- Runtime class name for all components
-  runtimeClassName: ""
-
-  # -- Common labels for the all resources
-  additionalLabels: {}
-    # app: argo-cd
-
+  domain: ${domain}
   # -- Number of old deployment ReplicaSets to retain. The rest will be garbage collected.
   revisionHistoryLimit: 3
 
@@ -73,41 +46,6 @@ global:
     # -- Set the global logging level. One of: `debug`, `info`, `warn` or `error`
     level: info
 
-  # -- Annotations for the all deployed Statefulsets
-  statefulsetAnnotations: {}
-
-  # -- Annotations for the all deployed Deployments
-  deploymentAnnotations: {}
-
-  # -- Annotations for the all deployed pods
-  podAnnotations: {}
-
-  # -- Labels for the all deployed pods
-  podLabels: {}
-
-  # -- Add Prometheus scrape annotations to all metrics services. This can be used as an alternative to the ServiceMonitors.
-  addPrometheusAnnotations: false
-
-  # -- Toggle and define pod-level security context.
-  # @default -- `{}` (See [values.yaml])
-  securityContext: {}
-  #  runAsUser: 999
-  #  runAsGroup: 999
-  #  fsGroup: 999
-
-  # -- Mapping between IP and hostnames that will be injected as entries in the pod's hosts files
-  hostAliases: []
-  # - ip: 10.20.30.40
-  #   hostnames:
-  #   - git.myhostname
-
-  # Configure dual-stack used by all component services
-  dualStack:
-    # -- IP family policy to configure dual-stack see [Configure dual-stack](https://kubernetes.io/docs/concepts/services-networking/dual-stack/#services)
-    ipFamilyPolicy: ""
-    # -- IP families that should be supported and the order in which they should be applied to ClusterIP as well. Can be IPv4 and/or IPv6.
-    ipFamilies: []
-
   # Default network policy rules used by all components
   networkPolicy:
     # -- Create NetworkPolicy objects for all components
@@ -115,45 +53,12 @@ global:
     # -- Default deny all ingress traffic
     defaultDenyIngress: false
 
-  # -- Default priority class for all components
-  priorityClassName: ""
-
-  # -- Default node selector for all components
-  nodeSelector: {}
-
-  # -- Default tolerations for all components
-  tolerations: []
-
-  # Default affinity preset for all components
-  affinity:
-    # -- Default pod anti-affinity rules. Either: `none`, `soft` or `hard`
-    podAntiAffinity: soft
-    # Node affinity rules
-    nodeAffinity:
-      # -- Default node affinity rules. Either: `none`, `soft` or `hard`
-      type: hard
-      # -- Default match expressions for node affinity
-      matchExpressions: []
-        # - key: topology.kubernetes.io/zone
-        #   operator: In
-        #   values:
-        #    - antarctica-east1
-        #    - antarctica-west1
-
-  # -- Default [TopologySpreadConstraints] rules for all components
-  ## Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/
-  ## If labelSelector is left out, it will default to the labelSelector of the component
-  topologySpreadConstraints: []
-    # - maxSkew: 1
-    #   topologyKey: topology.kubernetes.io/zone
-    #   whenUnsatisfiable: DoNotSchedule
-
   # -- Deployment strategy for the all deployed Deployments
-  deploymentStrategy: {}
-    # type: RollingUpdate
-    # rollingUpdate:
-    #   maxSurge: 25%
-    #   maxUnavailable: 25%
+  deploymentStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
 
   # -- Environment variables to pass to all deployed Deployments
   env: []
@@ -376,7 +281,7 @@ configs:
   ## Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#ssh-known-host-public-keys
   ssh:
     # -- Specifies if the argocd-ssh-known-hosts-cm configmap should be created by Helm.
-    create: false
+    create: true
 
     # -- Annotations to be added to argocd-ssh-known-hosts-cm configmap
     annotations: {}
@@ -956,7 +861,7 @@ controller:
 ## Dex
 dex:
   # -- Enable dex
-  enabled: false
+  enabled: true
   # -- Dex name
   name: dex-server
 

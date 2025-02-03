@@ -9,16 +9,17 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: {{ .Values.global.project }}
-  source:
-    chart: {{ .Values.istiod.source.chart }}
-    repoURL: {{ .Values.istiod.source.repoURL }}
-    targetRevision: {{ .Values.istiod.source.targetRevision }}
-    helm:
-      releaseName: {{ .Values.istiod.source.helm.releaseName }}
-      ignoreMissingValueFiles: {{ .Values.istiod.source.helm.ignoreMissingValueFiles }}
-      valueFiles: []
-      values: |
-        {{- .Values.istiod.source.helm.values | nindent 8 -}}
+  sources:
+    - chart: {{ .Values.istiod.source.chart }}
+      repoURL: {{ .Values.istiod.source.repoURL }}
+      targetRevision: {{ .Values.istiod.source.targetRevision }}
+      helm:
+        releaseName: {{ .Values.istiod.source.helm.releaseName }}
+        ignoreMissingValueFiles: {{ .Values.istiod.source.helm.ignoreMissingValueFiles }}
+        valueFiles:
+          {{- toYaml .Values.istiod.source.helm.valueFiles | nindent 10 }}
+        values: |
+          {{- .Values.istiod.source.helm.values | nindent 10 }}
   destination:
     namespace: istio-system
     name: in-cluster

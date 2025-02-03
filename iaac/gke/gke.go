@@ -7,52 +7,8 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
-
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
-
-// CreateGKE creates a Google Kubernetes Engine (GKE) cluster along with its associated node pool and Kubernetes provider for managing the cluster.
-// This function sets up the cluster, initializes the node pool, and creates a Kubernetes provider using the generated kubeconfig.
-// The Kubernetes provider is used to interact with the created GKE cluster.
-func CreateGKE(
-	ctx *pulumi.Context,
-	projectConfig project.ProjectConfig,
-	cloudRegion *project.CloudRegion,
-	gcpNetwork pulumi.StringInput,
-	gcpSubnetwork pulumi.StringInput,
-) (*kubernetes.Provider, error) {
-
-	config := Configuration(ctx)
-
-	gcpServiceAccount, serviceAccountMember, err := gkeConfigConnectorIAM(ctx, projectConfig)
-	if err != nil {
-		return nil, err
-	}
-	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GKE: %w", err)
-	}
-	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), gcpServiceAccount)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
-	}
-	if projectConfig.Target == "management" {
-		namespaceName := "config-connector"
-
-		gcpGKENodePool.ID().ApplyT(func(_ string) error {
-			err := createNamespace(ctx, projectConfig, namespaceName, k8sProvider)
-			if err != nil {
-				return fmt.Errorf("failed to create Config Connector namespace: %w", err)
-			}
-			err = applyResource(ctx, projectConfig, serviceAccountMember, k8sProvider)
-			if err != nil {
-				return fmt.Errorf("failed to apply Config Connector configuration: %w", err)
-			}
-			return nil
-		})
-	}
-	return k8sProvider, err
-}
 
 // createGKE sets up the Google Kubernetes Engine (GKE) cluster in the specified region using the provided network, subnetwork, and project details.
 // The function configures various cluster settings such as authorized networks, workload identity, and vertical pod autoscaling.
@@ -73,8 +29,10 @@ func createGKE(
 		Network:               gcpNetwork,
 		Subnetwork:            gcpSubnetwork,
 		Location:              pulumi.String(cloudRegion.Region), // Since we are providing a region, the cluster will be regional
+		DeletionProtection:    pulumi.Bool(false),                // We set this to false since we need to be able to destroy the cluster without interuptions, else the `pulumi destroy` will fail
 		RemoveDefaultNodePool: pulumi.Bool(true),
 		InitialNodeCount:      pulumi.Int(1),
+		PrivateClusterConfig:  &container.ClusterPrivateClusterConfigArgs{},
 		MinMasterVersion:      pulumi.String(config.NodePool.MinMasterVersion),
 		VerticalPodAutoscaling: &container.ClusterVerticalPodAutoscalingArgs{
 			Enabled: pulumi.Bool(true),
@@ -83,14 +41,6 @@ func createGKE(
 			Channel: pulumi.String("REGULAR"),
 		},
 		ResourceLabels: config.NodePool.ResourceLabels,
-		// MasterAuthorizedNetworksConfig: &container.ClusterMasterAuthorizedNetworksConfigArgs{
-		// 	CidrBlocks: &container.ClusterMasterAuthorizedNetworksConfigCidrBlockArray{
-		// 		&container.ClusterMasterAuthorizedNetworksConfigCidrBlockArgs{
-		// 			CidrBlock:   pulumi.String(config.Cidr),
-		// 			DisplayName: pulumi.String("Global Public Access"),
-		// 		},
-		// 	},
-		// },
 		WorkloadIdentityConfig: &container.ClusterWorkloadIdentityConfigArgs{
 			WorkloadPool: pulumi.String(fmt.Sprintf("%s.svc.id.goog", projectConfig.ProjectId)),
 		},
@@ -148,7 +98,9 @@ func createGKENodePool(
 			// Note: Enabling Workload Identity on an existing cluster does not automatically enable Workload Identity on the cluster's existing node pools.
 			//           We recommend that you enable Workload Identity on all your cluster's node pools since Config Connector could run on any of them.
 			//           https://cloud.google.com/config-connector/docs/how-to/install-upgrade-uninstall#prerequisites
-			WorkloadMetadataConfig: config.NodePool.WorkloadMetadataConfig,
+			WorkloadMetadataConfig: &container.NodePoolNodeConfigWorkloadMetadataConfigArgs{
+				Mode: pulumi.String("GKE_METADATA"),
+			},
 		},
 		Autoscaling: &container.NodePoolAutoscalingArgs{
 			LocationPolicy: pulumi.String("BALANCED"),

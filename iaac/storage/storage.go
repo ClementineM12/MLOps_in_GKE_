@@ -22,7 +22,6 @@ func CreateObjectStorage(
 	}
 
 	resourceName := fmt.Sprintf("%s-data-bucket", projectConfig.ResourceNamePrefix)
-	// Create a Google Cloud Storage bucket
 	bucket, err := storage.NewBucket(ctx, resourceName, &storage.BucketArgs{
 		Location:                 pulumi.String(bucketLocation),
 		StorageClass:             pulumi.String("STANDARD"),

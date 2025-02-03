@@ -9,16 +9,17 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: {{ .Values.global.project }}
-  source:
-    chart: {{ .Values.certManager.source.chart }}
-    repoURL: {{ .Values.certManager.source.repoURL }}
-    targetRevision: {{ .Values.certManager.source.targetRevision }}
-    helm:
-      releaseName: cert-manager
-      ignoreMissingValueFiles: {{ .Values.certManager.source.helm.ignoreMissingValueFiles }}
-      valueFiles: []
-      values: |
-        {{- .Values.certManager.source.helm.values | nindent 8 -}}
+  sources:
+    - chart: {{ .Values.certManager.source.chart }}
+      repoURL: {{ .Values.certManager.source.repoURL }}
+      targetRevision: {{ .Values.certManager.source.targetRevision }}
+      helm:
+        releaseName: cert-manager
+        ignoreMissingValueFiles: {{ .Values.certManager.source.helm.ignoreMissingValueFiles }}
+        valueFiles:
+          {{- toYaml .Values.certManager.source.helm.valueFiles | nindent 10 }}
+        values: |
+          {{- .Values.certManager.source.helm.values | nindent 10 }}
   destination:
     namespace: cert-manager
     name: in-cluster
@@ -29,3 +30,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 {{- end }}
+
