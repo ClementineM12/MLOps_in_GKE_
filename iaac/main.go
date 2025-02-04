@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"mlops/argocd"
+	"mlops/autoneg"
 	"mlops/gke"
 	"mlops/global"
-	gcpIAM "mlops/iam"
 	"mlops/istio"
 	"mlops/registry"
 	"mlops/storage"
@@ -37,8 +37,6 @@ func main() {
 }
 
 func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig, opts ...pulumi.ResourceOption) error {
-	// -------------------------- IAM ------------------------------
-	gcpServiceAccountAutoNeg := gcpIAM.CreateServiceAccount(ctx, projectConfig, "AutoNEG")
 	// -------------------------- VPC -----------------------------
 	gcpNetwork, gcpBackendService, err := vpc.CreateVPCResources(ctx, projectConfig, opts...)
 	if err != nil {
@@ -56,22 +54,27 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 		if err != nil {
 			return err
 		}
+		negReady, err := autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
+		if err != nil {
+			return err
+		}
 		// --------------------------- ArgoCD ----------------------------
-		if config.GetBool(ctx, "argocd:create") {
-			argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
-		}
-		// --------------------------- Istio ----------------------------
-		if config.GetBool(ctx, "istio:create") {
-			helmIstioBase, helmIstioD, err := istio.DeployIstio(ctx, projectConfig, cloudRegion, k8sProvider, gcpGKENodePool, gcpBackendService)
-			if err != nil {
-				return err
+		negReady.ApplyT(func(_ interface{}) error {
+			if config.GetBool(ctx, "argocd:create") {
+				err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
+				if err != nil {
+					return err
+				}
 			}
-			// Deploy Cluster Ops components for GKE AutoNeg and bind Service Account
-			err = gcpIAM.ConfigurateAutoNeg(ctx, projectConfig, gcpServiceAccountAutoNeg.ID(), &cloudRegion, k8sProvider, gcpGKENodePool, helmIstioBase, helmIstioD)
-			if err != nil {
-				return err
+			// --------------------------- Istio ----------------------------
+			if config.GetBool(ctx, "istio:create") {
+				err := istio.DeployIstio(ctx, projectConfig, cloudRegion, k8sProvider, gcpGKENodePool, gcpBackendService)
+				if err != nil {
+					return err
+				}
 			}
-		}
+			return nil
+		})
 	}
 	return nil
 }

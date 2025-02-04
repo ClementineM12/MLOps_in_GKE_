@@ -43,19 +43,19 @@ func DeployArgoCD(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
-) (*helm.Chart, error) {
+) error {
 
 	namespace, err := createNamespace(ctx, projectConfig, k8sProvider)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	_, err = getValues(argocdValuesPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	resourceName := fmt.Sprintf("%s-argocd", projectConfig.ResourceNamePrefix)
-	chart, err := helm.NewChart(ctx, resourceName, helm.ChartArgs{
+	_, err = helm.NewChart(ctx, resourceName, helm.ChartArgs{
 		Chart:   pulumi.String("argo-cd"),
 		Version: pulumi.String(argocdHelmChartVersion),
 		FetchArgs: helm.FetchArgs{
@@ -69,7 +69,7 @@ func DeployArgoCD(
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to deploy ArgoCD end-to-end: %s", err)
+		return fmt.Errorf("failed to deploy ArgoCD end-to-end: %s", err)
 	}
-	return chart, err
+	return err
 }

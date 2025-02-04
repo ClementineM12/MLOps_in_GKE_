@@ -7,7 +7,6 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -21,21 +20,21 @@ func DeployIstio(
 	k8sProvider *kubernetes.Provider,
 	gcpGKENodePool *container.NodePool,
 	gcpBackendService *compute.BackendService,
-) (*helm.Release, *helm.Release, error) {
+) error {
 
 	resourceNamePrefix := projectConfig.ResourceNamePrefix
 	helmIstioBase, err := createIstioBase(ctx, resourceNamePrefix, cloudRegion, k8sProvider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create Istio Service Mesh Base: %w", err)
+		return fmt.Errorf("failed to create Istio Service Mesh Base: %w", err)
 	}
 	helmIstioD, err := createIstiod(ctx, resourceNamePrefix, cloudRegion, k8sProvider, helmIstioBase, gcpGKENodePool)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error creating Istio Base: %w", err)
+		return fmt.Errorf("error creating Istio Base: %w", err)
 	}
 	// Deploy Istio Ingress Gateway into the GKE Clusters
 	err = createIstioIngressGateway(ctx, projectConfig, cloudRegion, k8sProvider, helmIstioBase, helmIstioD, gcpGKENodePool, gcpBackendService)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create Ingress Gateway for Istio Service Mesh: %w", err)
+		return fmt.Errorf("failed to create Ingress Gateway for Istio Service Mesh: %w", err)
 	}
-	return helmIstioBase, helmIstioD, nil
+	return nil
 }
