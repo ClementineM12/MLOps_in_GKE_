@@ -2,12 +2,22 @@ name: Build Kubeflow Helm Chart
 
 on:
   workflow_dispatch:
+    inputs:
+      chart:
+        required: true 
+        type: choice
+        default: test-02
+        options:
+          - test-01
+          - test-02
+
 
 env: 
     REGION: ${{ vars.REGION }}
     SERVICE_ACCOUNT: github-svc@mlops-development-project.iam.gserviceaccount.com
     ACCESS_TOKEN_LIFETIME: 200s
-    CHART_PATH: helm/kubeflow
+    CHART_PATH_01: helm/kubeflow-01
+    CHART_PATH_02: helm/kubeflow-02
 
 jobs:
   build-and-push:
@@ -22,16 +32,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Define chart version
-        id: define-chart-version
+        if: ${{ inputs.chart == 'test-01' }}
+        id: define-chart-version-01
         run: |
-          KUBEFLOW_VERSION=$(yq e '.version' helm/kubeflow/Chart.yaml)
+          KUBEFLOW_VERSION=$(yq e '.version' $CHART_PATH_01/Chart.yaml)
           echo "KUBEFLOW_VERSION=$KUBEFLOW_VERSION" >> "$GITHUB_OUTPUT"
 
-      # - name: Define chart version
-      #   id: define-chart-version-2
-      #   run: |
-      #     KUBEFLOW_CORE_VERSION=$(yq e '.version' helm/kubeflow-core/Chart.yaml)
-      #     echo "KUBEFLOW_CORE_VERSION=$KUBEFLOW_CORE_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Define chart version
+        if: ${{ inputs.chart == 'test-02' }}
+        id: define-chart-version-02
+        run: |
+          KUBEFLOW_CORE_VERSION=$(yq e '.version' $CHART_PATH_02/kubeflow-core/Chart.yaml)
+          echo "KUBEFLOW_CORE_VERSION=$KUBEFLOW_CORE_VERSION" >> "$GITHUB_OUTPUT"
+
+          KUBEFLOW_VERSION=$(yq e '.version' $CHART_PATH_02/kubeflow/Chart.yaml)
+          echo "KUBEFLOW_VERSION=$KUBEFLOW_VERSION" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
         id: auth
@@ -47,20 +62,24 @@ jobs:
           gcloud auth configure-docker $REGION-docker.pkg.dev --access-token-file=${{steps.auth.outputs.credentials_file_path}}
 
       - name: Package and push helm charts to GCP Artifact Registry
+        if: ${{ inputs.chart == 'test-01' }}
+        id: build-chart-01
         env:
-          KUBEFLOW_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_VERSION }}
+          KUBEFLOW_VERSION: ${{ steps.define-chart-version-01.outputs.KUBEFLOW_VERSION }}
         run: |
-          helm package helm/kubeflow --version $KUBEFLOW_VERSION
+          helm package $CHART_PATH_01 --version $KUBEFLOW_VERSION
           helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
 
-      # - name: Package and push helm charts to GCP Artifact Registry [ CORE ]
-      #   env:
-      #     KUBEFLOW_CORE_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_CORE_VERSION }}
-      #     KUBEFLOW_VERSION: ${{ steps.define-chart-version.outputs.KUBEFLOW_VERSION }}
-      #   run: |
-      #     helm package helm/kubeflow-core --version $KUBEFLOW_CORE_VERSION
-      #     helm package helm/kubeflow --version $KUBEFLOW_VERSION
+      - name: Package and push helm charts to GCP Artifact Registry
+        if: ${{ inputs.chart == 'test-02' }}
+        id: build-chart-02
+        env:
+          KUBEFLOW_CORE_VERSION: ${{ steps.define-chart-version-02.outputs.KUBEFLOW_CORE_VERSION }}
+          KUBEFLOW_VERSION: ${{ steps.define-chart-version-02.outputs.KUBEFLOW_VERSION }}
+        run: |
+          helm package $CHART_PATH_02/kubeflow-core --version $KUBEFLOW_CORE_VERSION
+          helm package $CHART_PATH_02/kubeflow --version $KUBEFLOW_VERSION
 
-      #     # helm push kubeflow-core-$KUBEFLOW_CORE_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
-      #     helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
+          helm push kubeflow-core-$KUBEFLOW_CORE_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
+          helm push kubeflow-$KUBEFLOW_VERSION.tgz oci://$REGION-docker.pkg.dev/${{ secrets.PROJECT_ID }}/helm-charts
 

@@ -10,6 +10,14 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
+var (
+	GKEDeletionProtection    = false // We set this to false since we need to be able to destroy the cluster without interuptions, else the `pulumi destroy` will fail
+	GKERemoveDefaultNodePool = true
+	GKEEnableShieldedNodes   = true
+	GKEEnablePrivateNodes    = true
+	GKEReleaseChannel        = "REGULAR"
+)
+
 // createGKE sets up the Google Kubernetes Engine (GKE) cluster in the specified region using the provided network, subnetwork, and project details.
 // The function configures various cluster settings such as authorized networks, workload identity, and vertical pod autoscaling.
 // It returns the created GKE cluster object, which is used by subsequent resources such as node pools and Kubernetes providers.
@@ -29,24 +37,31 @@ func createGKE(
 		Network:               gcpNetwork,
 		Subnetwork:            gcpSubnetwork,
 		Location:              pulumi.String(cloudRegion.Region), // Since we are providing a region, the cluster will be regional
-		DeletionProtection:    pulumi.Bool(false),                // We set this to false since we need to be able to destroy the cluster without interuptions, else the `pulumi destroy` will fail
-		RemoveDefaultNodePool: pulumi.Bool(true),
+		DeletionProtection:    pulumi.Bool(GKEDeletionProtection),
+		RemoveDefaultNodePool: pulumi.Bool(GKERemoveDefaultNodePool),
 		InitialNodeCount:      pulumi.Int(1),
-		PrivateClusterConfig:  &container.ClusterPrivateClusterConfigArgs{},
-		MinMasterVersion:      pulumi.String(config.NodePool.MinMasterVersion),
+		EnableShieldedNodes:   pulumi.Bool(GKEEnableShieldedNodes),
+		PrivateClusterConfig: &container.ClusterPrivateClusterConfigArgs{
+			EnablePrivateNodes: pulumi.Bool(GKEEnablePrivateNodes),
+		},
+		MinMasterVersion: pulumi.String(config.NodePool.MinMasterVersion),
 		VerticalPodAutoscaling: &container.ClusterVerticalPodAutoscalingArgs{
 			Enabled: pulumi.Bool(true),
 		},
 		ReleaseChannel: &container.ClusterReleaseChannelArgs{
-			Channel: pulumi.String("REGULAR"),
+			Channel: pulumi.String(GKEReleaseChannel),
 		},
 		ResourceLabels: config.NodePool.ResourceLabels,
 		WorkloadIdentityConfig: &container.ClusterWorkloadIdentityConfigArgs{
 			WorkloadPool: pulumi.String(fmt.Sprintf("%s.svc.id.goog", projectConfig.ProjectId)),
 		},
+		// HorizontalPodAutoscaling & HttpLoadBalancing are also enabled by default
 		AddonsConfig: &container.ClusterAddonsConfigArgs{
 			ConfigConnectorConfig: &container.ClusterAddonsConfigConfigConnectorConfigArgs{
 				Enabled: pulumi.Bool(projectConfig.Target == "management"),
+			},
+			GcePersistentDiskCsiDriverConfig: &container.ClusterAddonsConfigGcePersistentDiskCsiDriverConfigArgs{
+				Enabled: pulumi.Bool(true),
 			},
 		},
 	})
