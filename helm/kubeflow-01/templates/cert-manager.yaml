@@ -1,0 +1,49 @@
+{{- if .Values.certManager.enabled }}
+{{- $project := .Values.global.project }}
+{{- $namespace := "cert-manager" }}
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+{{- with .Values.certManager }}
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    {{- if not .wave }}
+        {{- fail (printf "Error: Sync wave must be defined.") }}
+    {{- else }}
+    argocd.argoproj.io/sync-wave: "{{ .wave }}"
+    {{- end }}
+    app.kubernetes.io/part-of: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ $project }}
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+    automated: 
+      selfHeal: true
+  sources:
+    {{- with .source }}
+    - chart: {{ .chart }}
+      repoURL: {{ .repoURL }}
+      targetRevision: {{ .targetRevision }}
+      {{- if .path }}
+      path: {{ .path }}
+      {{- end }}
+      helm:
+        releaseName: {{ .helm.ReleaseName }}
+        ignoreMissingValueFiles: {{ dig "helm" "ignoreMissingValueFiles" "true" . }}
+        valueFiles: {{ dig "helm" "valueFiles" list . | toYaml | nindent 10 }}
+        valuesObject: {{- dig "helm" "values" dict . | toYaml | nindent 10 }}
+        parameters: {{ dig "helm" "parameters" list . | toYaml | nindent 10 }}
+    {{- end }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $namespace }}
+{{- end }}
+{{- end }}
+

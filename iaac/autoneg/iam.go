@@ -14,19 +14,19 @@ import (
 func createAutoNegIAMResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-) (pulumi.StringArrayOutput, error) {
+) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
 	// Create AutoNEG Service Account
 	gcpAutoNEGServiceAccount, gcpIAMAccountMember, err := gcpIAM.CreateServiceAccount(ctx, projectConfig, "AutoNEG")
 	if err != nil {
-		return pulumi.StringArrayOutput{}, fmt.Errorf("failed to configure IAM access for Auto NEG Controller end-to-end: %w", err)
+		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to configure IAM access for Auto NEG Controller end-to-end: %w", err)
 	}
 	// Assign Workload Identity IAM Role (if enabled)
 	err = assignWorkloadIdentity(ctx, projectConfig, gcpAutoNEGServiceAccount)
 	if err != nil {
-		return pulumi.StringArrayOutput{}, fmt.Errorf("failed to assign IAM Workload Intentity to Auto NEG Controller: %w", err)
+		return nil, pulumi.StringArrayOutput{}, fmt.Errorf("failed to assign IAM Workload Intentity to Auto NEG Controller: %w", err)
 	}
-	return gcpIAMAccountMember, nil
+	return gcpAutoNEGServiceAccount, gcpIAMAccountMember, nil
 }
 
 // Step 6: Assign Workload Identity IAM Role (if enabled)

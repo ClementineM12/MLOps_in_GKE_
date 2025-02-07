@@ -9,634 +9,377 @@ debug: false
 global:
   # The ArgoCD project under which applications will be managed
   project: default
+  # The namespace ArgoCD is deployed
+  namespace: argocd
+  # Kubernetes release
+  release: argocd
 
 # Configuration for Cert-Manager
 certManager:
   # Enable or disable the deployment of Cert-Manager
-  enabled: true
+  enabled: false
+  wave: 3
   source:
     # The Helm chart name for Cert-Manager
-    chart: 'cert-manager'
+    chart: cert-manager
     # The repository URL for fetching the chart
     repoURL: https://charts.jetstack.io
     # The specific version of the chart to deploy
-    targetRevision: "1.14.3"
+    targetRevision: "1.16.3"
     helm:
       # List of additional Helm values files (if any)
-      valueFiles: []
-      # Ignore missing values files to prevent deployment failures
-      ignoreMissingValueFiles: true
+      releaseName: cert-manager
       # Inline Helm values configuration
-      values: |
-        installCRDs: true
+      values:
+        crds: 
+          enabled: true
+          keep: false
 
-# Configuration for Istio Base
-istioBase:
-  # Enable or disable the deployment of Istio Base
-  enabled: true
-  source:
-    # The Helm chart name for Istio Base
-    chart: 'base'
-    # The repository URL for fetching the chart
+istio:
+  global: 
+    targetRevision: "1.24.2"
     repoURL: 'https://istio-release.storage.googleapis.com/charts'
-    # The specific version of the chart to deploy
-    targetRevision: "1.18.7"
-    helm:
-      # The Helm release name
-      releaseName: "istio-base"
-      # Ignore missing values files to prevent deployment failures
-      ignoreMissingValueFiles: true
-      # List of additional Helm values files (if any)
-      valueFiles: []
+  components:
+    # -- Istio
+    base:
+      enabled: true
+      wave: 3
+      namespace: 
+        create: true
+        labels:
+          control-plane: kubeflow
+          istio-injection: enabled
+      source:
+        chart: 'base'
+        helm:
+          releaseName: "istio-base"
+    # -- Istiod
+    istiod:
+      enabled: true
+      wave: 4
+      source:
+        chart: 'istiod'
+        helm:
+          releaseName: "istiod"
+    # -- Ingress Gateway
+    gateway:
+      enabled: true
+      wave: 4
+      source:
+        chart: "gateway"
+        helm:
+          releaseName: "gateway"
+          values:
+            service:
+              type: ClusterIP
+            serviceAccount:
+              name: istio-ingressgateway-service-account
+    # -- Istio Kubeflow Resources
+    istioResources:
+      enabled: false
+      wave: 10
+      source:
+        path: common/istio-1-17/kubeflow-istio-resources/base
+      # destination -> argocd [MAYBE]
 
-istiod:
-  enabled: true
-  source:
-    chart: 'istiod'
-    repoURL: 'https://istio-release.storage.googleapis.com/charts'
-    targetRevision: "1.18.7"
-    helm:
-      releaseName: "istiod"
-      ignoreMissingValueFiles: true
-      valueFiles: []
-      values: |
-        pilot:
-          resources:
-            requests:
-              cpu: 10m
-              memory: 128Mi
-        global:
-          proxy:
-            resources:
-              requests:
-                cpu: 10m
-                memory: 64Mi
+kubeflow: 
+  global:
+    targetRevision: 1.9.1
+    repoURL: https://github.com/kubeflow/manifests
+  utils:
+    # -- Roles
+    kubeflowRoles:
+      enabled: true
+      wave: 10
+      source:
+        path: common/kubeflow-roles/base
+    # -- Profiles
+    profiles:
+      enabled: true
+      wave: 100
+      source:
+        path: apps/profiles/upstream/overlays/kubeflow
+    # -- Admission Webhook
+    admissionWebhook:
+      enabled: false
+      wave: 100
+      source:
+        path: apps/admission-webhook/upstream/overlays/cert-manager
+    # PVC Viewer Controller
+    pvcViewerController:
+      enabled: true
+      wave: 100
+      source:
+        path: apps/pvcviewer-controller/upstream/default
+    # -- Volumes Web App
+    volumesWebApp:
+      enabled: true
+      wave: 100
+      source:
+        path: apps/volumes-web-app/upstream/overlays/istio
+    # -- Example Profile
+    exampleProfile:
+      enabled: true
+      wave: 102
+      source:
+        path: common/user-namespace/base
+    # -- Cluster Local Gateway
+    clusterLocalGateway:
+      enabled: false
+      wave: 200
+      source:
+        path: common/istio-1-17/cluster-local-gateway/base
+        kustomize:
+          patches:
+          - target:
+              kind: Deployment
+              name: cluster-local-gateway
+              namespace: istio-system
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 10m
 
-gateway:
-  enabled: true
-  source:
-    chart: 'gateway'
-    repoURL: 'https://istio-release.storage.googleapis.com/charts'
-    targetRevision: "1.18.7"
-    helm:
-      releaseName: "istio-ingressgateway"
-      ignoreMissingValueFiles: true
-      valueFiles: []
-      values: |
-        service:
-          type: ClusterIP
-        serviceAccount:
-          name: istio-ingressgateway-service-account
-        resources:
-          requests:
-            cpu: 10m
-            memory: 64Mi
-          limits:
-            cpu: 2000m
-            memory: 1024Mi
+  components: 
+    # -- Katib
+    katib:
+      enabled: false
+      wave: 202
+      source:
+        path: apps/katib/upstream/installs/katib-with-kubeflow
+    # -- Models Web App
+    modelsWebApp:
+      enabled: false
+      wave: 201
+      source:
+        path: contrib/kserve/models-web-app/overlays/kubeflow
+    # -- Spark Operator
+    sparkOperator:
+      enabled: false
+      wave: 300
+      namespace: 
+        create: true # check this [MAYBE]
+      source:
+        chart: 'spark-operator'
+        repoURL: 'https://kubeflow.github.io/spark-operator'
+        targetRevision: "1.1.27"
+        helm:
+          releaseName: "spark-operator"
+    # -- Pipelines
+    pipelines:
+      enabled: false
+      wave: 200
+      source:
+        path: apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user
+        kustomize:
+          patches:
+          - target:
+              kind: Deployment
+              name: ml-pipeline
+              namespace: kubeflow
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 10m
+          - target:
+              kind: Deployment
+              name: ml-pipeline-persistenceagent
+              namespace: kubeflow
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 10m
+          - target:
+              kind: Deployment
+              name: workflow-controller
+              namespace: kubeflow
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 10m
+          - target:
+              kind: Deployment
+              name: mysql
+              namespace: kubeflow
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 10m
+          - target:
+              kind: StatefulSet
+              name: metacontroller
+              namespace: kubeflow
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 10m
+    # -- Jupyter Web App
+    jupyterWebApp:
+      enabled: true
+      wave: 100
+      source:
+        path: apps/jupyter/jupyter-web-app/upstream/overlays/istio
+    # -- Notebook Controller
+    notebookController:
+      enabled: true
+      wave: 100
+      source:
+        path: apps/jupyter/notebook-controller/upstream/overlays/kubeflow
+    # -- Dashboard
+    centralDashboard:
+      enabled: false
+      wave: 100
+      source:
+        path: apps/centraldashboard/upstream/overlays/kserve
+        kustomize:
+          patches:
+          - target:
+              kind: ConfigMap
+              name: centraldashboard-config
+            patch: |-
+              - op: replace
+                path: /data/links
+                value: |
+                  {
+                    "menuLinks": [
+                      {
+                        "type": "item",
+                        "link": "/jupyter/",
+                        "text": "Notebooks",
+                        "icon": "book"
+                      },
+                      {
+                        "type": "item",
+                        "link": "/volumes/",
+                        "text": "Volumes",
+                        "icon": "device:storage"
+                      }
+                    ],
+                    "externalLinks": [ ],
+                      "quickLinks": [
+                        {
+                          "text": "Create a new Notebook server",
+                          "desc": "Notebook Servers",
+                          "link": "/jupyter/new?namespace=kubeflow"
+                        }
+                      ],
+                      "documentationItems": [
+                        {
+                          "text": "Getting Started with Kubeflow",
+                          "desc": "Get your machine-learning workflow up and running on Kubeflow",
+                          "link": "https://www.kubeflow.org/docs/started/getting-started/"
+                        }
+                      ]
+                  }
 
-# dex:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: common/dex/overlays/istio
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
+oauth: 
+  global:
+    targetRevision: 1.9.1
+    repoURL: https://github.com/kubeflow/manifests
+  components:
+    # -- DEX
+    dex:
+      enabled: true
+      wave: 8
+      source:
+        path: common/dex/overlays/istio
+    # -- OIDC
+    oidcAuthService:
+      enabled: true
+      wave: 9
+      source:
+        path: common/oidc-client/oidc-authservice/base
 
-# oidcAuthService:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: common/oidc-client/oidc-authservice/base
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# kubeflowNamespace:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: common/kubeflow-namespace/base
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# istioResources:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: common/istio-1-17/kubeflow-istio-resources/base
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# kubeflowRoles:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: common/kubeflow-roles/base
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# admissionWebhook:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/admission-webhook/upstream/overlays/cert-manager
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# centralDashboard:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/centraldashboard/upstream/overlays/kserve
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#       kustomize:
-#         patches:
-#         - target:
-#             kind: ConfigMap
-#             name: centraldashboard-config
-#           patch: |-
-#             - op: replace
-#               path: /data/links
-#               value: |
-#                 {
-#                   "menuLinks": [
-#                     {
-#                       "type": "item",
-#                       "link": "/jupyter/",
-#                       "text": "Notebooks",
-#                       "icon": "book"
-#                     },
-#                     {
-#                       "type": "item",
-#                       "link": "/volumes/",
-#                       "text": "Volumes",
-#                       "icon": "device:storage"
-#                     }
-#                   ],
-#                   "externalLinks": [ ],
-#                     "quickLinks": [
-#                       {
-#                         "text": "Create a new Notebook server",
-#                         "desc": "Notebook Servers",
-#                         "link": "/jupyter/new?namespace=kubeflow"
-#                       }
-#                     ],
-#                     "documentationItems": [
-#                       {
-#                         "text": "Getting Started with Kubeflow",
-#                         "desc": "Get your machine-learning workflow up and running on Kubeflow",
-#                         "link": "https://www.kubeflow.org/docs/started/getting-started/"
-#                       }
-#                     ]
-#                 }
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# jupyterWebApp:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/jupyter/jupyter-web-app/upstream/overlays/istio
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# notebookController:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/jupyter/notebook-controller/upstream/overlays/kubeflow
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# profiles:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/profiles/upstream/overlays/kubeflow
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# pvcViewerController:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/pvcviewer-controller/upstream/default
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# volumesWebApp:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: apps/volumes-web-app/upstream/overlays/istio
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# exampleProfile:
-#   enabled: true
-#   spec:
-#     project: default
-#     source:
-#       path: common/user-namespace/base
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# knativeServing:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: common/knative/knative-serving/overlays/gateways
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#       kustomize:
-#         patches:
-#         - target:
-#             kind: Deployment
-#             name: activator
-#             namespace: knative-serving
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 15m
-#         - target:
-#             kind: Deployment
-#             name: autoscaler
-#             namespace: knative-serving
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 15m
-#         - target:
-#             kind: Deployment
-#             name: domainmapping-webhook
-#             namespace: knative-serving
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 15m
-#         - target:
-#             kind: Deployment
-#             name: webhook
-#             namespace: knative-serving
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 15m
-#         - target:
-#             kind: Deployment
-#             name: controller
-#             namespace: knative-serving
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 15m
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# clusterLocalGateway:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: common/istio-1-17/cluster-local-gateway/base
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#       kustomize:
-#         patches:
-#         - target:
-#             kind: Deployment
-#             name: cluster-local-gateway
-#             namespace: istio-system
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 10m
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# kserve:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: contrib/kserve/kserve
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#       kustomize:
-#         patches:
-#         - target:
-#             kind: Deployment
-#             name: kserve-controller-manager
-#             namespace: kubeflow
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 15m
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# katib:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: apps/katib/upstream/installs/katib-with-kubeflow
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# modelsWebApp:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: contrib/kserve/models-web-app/overlays/kubeflow
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# kubeflowPipelines:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#       kustomize:
-#         patches:
-#         - target:
-#             kind: Deployment
-#             name: ml-pipeline
-#             namespace: kubeflow
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 10m
-#         - target:
-#             kind: Deployment
-#             name: ml-pipeline-persistenceagent
-#             namespace: kubeflow
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 10m
-#         - target:
-#             kind: Deployment
-#             name: workflow-controller
-#             namespace: kubeflow
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 10m
-#         - target:
-#             kind: Deployment
-#             name: mysql
-#             namespace: kubeflow
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 10m
-#         - target:
-#             kind: StatefulSet
-#             name: metacontroller
-#             namespace: kubeflow
-#           patch: |-
-#             - op: replace
-#               path: /spec/template/spec/containers/0/resources/requests/cpu
-#               value: 10m
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# tensorboardController:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# tensorboardsWebApp:
-#   enabled: false
-#   spec:
-#     project: default
-#     source:
-#       path: apps/tensorboard/tensorboards-web-app/upstream/overlays/istio
-#       repoURL: https://github.com/kubeflow/manifests
-#       targetRevision: 776d4f4
-#     destination:
-#       namespace: argocd
-#       name: in-cluster
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - ServerSideApply=true
-
-# kuberay:
-#   enabled: false
-#   spec:
-#     project: default
-#     sources:
-#       - chart: 'kuberay-operator'
-#         repoURL: 'https://ray-project.github.io/kuberay-helm/'
-#         targetRevision: "1.1.0"
-#         helm:
-#           releaseName: "kuberay"
-#           ignoreMissingValueFiles: true
-#           valuesObject:
-#             resources: {}
-#     destination:
-#       namespace: 'kubeflow'
-#       name: 'in-cluster'
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - CreateNamespace=true
-#         - ServerSideApply=true
-
-# sparkOperator:
-#   enabled: false
-#   spec:
-#     project: default
-#     sources:
-#       - chart: 'spark-operator'
-#         repoURL: 'https://kubeflow.github.io/spark-operator'
-#         targetRevision: "1.1.27"
-#         helm:
-#           releaseName: "spark-operator"
-#           ignoreMissingValueFiles: true
-#           valuesObject: {}
-#     destination:
-#       namespace: 'kubeflow'
-#       name: 'in-cluster'
-#     syncPolicy:
-#       automated:
-#         prune: false
-#       syncOptions:
-#         - CreateNamespace=true
-#         - ServerSideApply=true
+extras: 
+  global:
+    targetRevision: 1.9.1
+    repoURL: https://github.com/kubeflow/manifests
+  components:
+    # --Tensorboard Controller
+    tensorboardController:
+      enabled: false
+      wave: 200
+      source:
+        path: apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow
+    # -- Tensorboard Web App
+    tensorboardsWebApp:
+      enabled: false
+      wave: 200
+      source:
+        path: apps/tensorboard/tensorboards-web-app/upstream/overlays/istio
+    # -- Kuberay
+    kuberay:
+      enabled: false
+      wave: 300
+      namespace: 
+        create: true # [MAYBE]
+      source:
+        chart: 'kuberay-operator'
+        repoURL: 'https://ray-project.github.io/kuberay-helm/'
+        targetRevision: "1.1.0"
+        helm:
+          releaseName: "kuberay"
+    # -- KNative Serving
+    knativeServing:
+      enabled: false
+      wave: 200
+      source:
+        path: common/knative/knative-serving/overlays/gateways
+        kustomize:
+          patches:
+          - target:
+              kind: Deployment
+              name: activator
+              namespace: knative-serving
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 15m
+          - target:
+              kind: Deployment
+              name: autoscaler
+              namespace: knative-serving
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 15m
+          - target:
+              kind: Deployment
+              name: domainmapping-webhook
+              namespace: knative-serving
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 15m
+          - target:
+              kind: Deployment
+              name: webhook
+              namespace: knative-serving
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 15m
+          - target:
+              kind: Deployment
+              name: controller
+              namespace: knative-serving
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 15m
+    # -- KServe
+    kserve:
+      enabled: false
+      wave: 201
+      source:
+        path: contrib/kserve/kserve
+        kustomize:
+          patches:
+          - target:
+              kind: Deployment
+              name: kserve-controller-manager
+              namespace: kubeflow
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/resources/requests/cpu
+                value: 15m

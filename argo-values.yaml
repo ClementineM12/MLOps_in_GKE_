@@ -110,6 +110,7 @@ server:
 
   # -- The number of server pods to run
   replicas: 1
+  
   ## Argo CD extensions
   ## This function in tech preview stage, do expect instability or breaking changes in newer versions.
   ## Ref: https://github.com/argoproj-labs/argocd-extension-installer
@@ -142,8 +143,9 @@ repoServer:
   
   serviceAccount:
     annotations:
-      iam.gke.io/gcp-service-account: argocd@$PROJECT_ID.iam.gserviceaccount.com
-    initContainers:
+      iam.gke.io/gcp-service-account: argocd-svc@mlops-development-project.iam.gserviceaccount.com
+
+  initContainers:
     - name: download-tools
       image: alpine:3
       command: [ sh, -c ]
@@ -151,23 +153,24 @@ repoServer:
       - |
         cd /var/run/docker-credential-gcr
         wget -qO - https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.1.8/docker-credential-gcr_linux_amd64-2.1.8.tar.gz | tar xz
-        PATH=.:$PATH HOME=/var/run/config docker-credential-gcr configure-docker --include-artifact-registry
+        PATH=.:$PATH HOME=/var/run/config docker-credential-gcr configure-docker --registries="europe-west8-docker.pkg.dev/mlops-development-project/helm-charts"
         chmod +r /var/run/config/.docker/config.json
       volumeMounts:
       - mountPath: /var/run/docker-credential-gcr
         name: docker-credential-gcr
       - mountPath: /var/run/config/.docker
         name: docker-config
-    volumeMounts:
-    - mountPath: /usr/local/bin/docker-credential-gcr
-      name: docker-credential-gcr
-      subPath: docker-credential-gcr
-      readOnly: true
-    - mountPath: /home/argocd/.docker
-      name: docker-config
-      readOnly: true
-    volumes:
-    - emptyDir: {}
-      name: docker-credential-gcr
-    - emptyDir: {}
-      name: docker-config
+  volumeMounts:
+  - mountPath: /usr/local/bin/docker-credential-gcr
+    name: docker-credential-gcr
+    subPath: docker-credential-gcr
+    readOnly: true
+  - mountPath: /home/argocd/.docker
+    name: docker-config
+    readOnly: true
+  volumes:
+  - emptyDir: {}
+    name: docker-credential-gcr
+  - emptyDir: {}
+    name: docker-config
+

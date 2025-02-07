@@ -13,13 +13,12 @@ func EnableAutoNEGController(
 	k8sProvider *kubernetes.Provider,
 ) (pulumi.Output, error) {
 
-	gcpIAMAccountMember, err := createAutoNegIAMResources(ctx, projectConfig)
+	gcpAutoNEGServiceAccount, gcpIAMAccountMember, err := createAutoNegIAMResources(ctx, projectConfig)
 	if err != nil {
 		return nil, err
 	}
-	negDeployment, err := createAutoNEGKubernetesResources(ctx, projectConfig, k8sProvider, gcpIAMAccountMember)
-	if err != nil {
-		return nil, err
-	}
+	negDeployment := gcpAutoNEGServiceAccount.ID().ApplyT(func(_ interface{}) (pulumi.Output, error) {
+		return createAutoNEGKubernetesResources(ctx, projectConfig, k8sProvider, gcpIAMAccountMember)
+	}).(pulumi.Output)
 	return negDeployment, nil
 }

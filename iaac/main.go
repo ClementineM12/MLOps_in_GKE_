@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 
 	"mlops/argocd"
 	"mlops/autoneg"
 	"mlops/gke"
 	"mlops/global"
-	"mlops/istio"
 	"mlops/registry"
 	"mlops/storage"
 	"mlops/vpc"
@@ -28,17 +27,17 @@ func main() {
 			registry.CreateArtifactRegistry(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
 		}
 
-		err := CreateProjectResources(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
-		if err != nil {
-			return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
-		}
+		// err := CreateProjectResources(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+		// if err != nil {
+		// 	return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
+		// }
 		return nil
 	})
 }
 
 func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig, opts ...pulumi.ResourceOption) error {
 	// -------------------------- VPC -----------------------------
-	gcpNetwork, gcpBackendService, err := vpc.CreateVPCResources(ctx, projectConfig, opts...)
+	gcpNetwork, _, err := vpc.CreateVPCResources(ctx, projectConfig, opts...)
 	if err != nil {
 		return nil
 	}
@@ -50,7 +49,7 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 			return err
 		}
 		// --------------------------- GKE ----------------------------
-		k8sProvider, gcpGKENodePool, err := gke.CreateGKEResources(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
+		k8sProvider, _, err := gke.CreateGKEResources(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
 		if err != nil {
 			return err
 		}
@@ -62,13 +61,6 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 		negReady.ApplyT(func(_ interface{}) error {
 			if config.GetBool(ctx, "argocd:create") {
 				err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
-				if err != nil {
-					return err
-				}
-			}
-			// --------------------------- Istio ----------------------------
-			if config.GetBool(ctx, "istio:create") {
-				err := istio.DeployIstio(ctx, projectConfig, cloudRegion, k8sProvider, gcpGKENodePool, gcpBackendService)
 				if err != nil {
 					return err
 				}

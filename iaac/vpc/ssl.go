@@ -86,7 +86,7 @@ func createManagedSSLCertificate(
 		Type:        pulumi.String("MANAGED"),
 		Managed: &compute.ManagedSslCertificateManagedArgs{
 			Domains: pulumi.StringArray{
-				pulumi.String(projectConfig.Domain), // Uses your Domain provided
+				pulumi.String(projectConfig.Domain), // Uses the Domain provided
 			},
 		},
 	}, opts...)

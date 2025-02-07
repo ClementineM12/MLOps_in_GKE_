@@ -23,35 +23,43 @@ func CreateArtifactRegistry(
 	}
 
 	registry.ID().ApplyT(func(_ string) error {
-		// Create a Workload Identity Pool
-		wifPool, err := createWorkloadIdentityPool(ctx, projectConfig)
-		if err != nil {
-			return fmt.Errorf("failed to create Workload Identity Pool: %w", err)
-		}
-		wifProvider, err := createWorkloadIdentityPoolProvider(ctx, projectConfig, wifPool, githubRepo)
-		if err != nil {
-			return fmt.Errorf("failed to create Workload Identity Provider: %w", err)
+		if config.GetBool(ctx, "ar:githubSACreate") {
+			// Create a Workload Identity Pool
+			wifPool, err := createWorkloadIdentityPool(ctx, projectConfig)
+			if err != nil {
+				return fmt.Errorf("failed to create Workload Identity Pool: %w", err)
+			}
+			wifProvider, err := createWorkloadIdentityPoolProvider(ctx, projectConfig, wifPool, githubRepo)
+			if err != nil {
+				return fmt.Errorf("failed to create Workload Identity Provider: %w", err)
+			}
+
+			// Create a Service Account
+			githubServiceAccount, serviceAccountMember, err := createGithubServiceAccount(ctx, projectConfig)
+			if err != nil {
+				return fmt.Errorf("failed to create Service Account: %w", err)
+			}
+			err = createGithubServiceAccountIAMBinding(ctx, projectConfig, githubServiceAccount.ID(), wifPool, githubRepo)
+			if err != nil {
+				return fmt.Errorf("failed to bind IAM role to Service Account: %w", err)
+			}
+			err = createRegistryIAMMember(ctx, projectConfig, githubServiceAccount, serviceAccountMember)
+			if err != nil {
+				return fmt.Errorf("failed to assign Artifact Registry writer role: %w", err)
+			}
+
+			ctx.Export("workloadIdentityProvider", wifProvider.Name)
+			ctx.Export("githubServiceAccountEmail", githubServiceAccount.Email)
 		}
 
-		// Create a Service Account
-		serviceAccount, serviceAccountMember, err := createGithubServiceAccount(ctx, projectConfig)
-		if err != nil {
-			return fmt.Errorf("failed to create Service Account: %w", err)
+		if config.GetBool(ctx, "ar:argoCDSACreate") {
+			argoCDServiveAccount, err := createArgoCDServiceAccount(ctx, projectConfig)
+			if err != nil {
+				return err
+			}
+			ctx.Export("argoCDServiveAccountEmail", argoCDServiveAccount.Email)
 		}
-		err = createGithubServiceAccountIAMBinding(ctx, projectConfig, serviceAccount.ID(), wifPool, githubRepo)
-		if err != nil {
-			return fmt.Errorf("failed to bind IAM role to Service Account: %w", err)
-		}
-		err = createRegistryIAMMember(ctx, projectConfig, serviceAccount, serviceAccountMember)
-		if err != nil {
-			return fmt.Errorf("failed to assign Artifact Registry writer role: %w", err)
-		}
-
-		// Output required values for GitHub Actions
 		ctx.Export("artifactRegistryURL", registry.RepositoryId)
-		ctx.Export("workloadIdentityProvider", wifProvider.Name)
-		ctx.Export("serviceAccountEmail", serviceAccount.Email)
-
 		return nil
 	})
 	return nil

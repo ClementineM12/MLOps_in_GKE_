@@ -29,4 +29,10 @@ var SVC = map[string]svc{
 		},
 		createRole: true,
 	},
+	"Admin": {
+		resourceNameSuffix: "admin",
+		Permissions: pulumi.StringArray{
+			pulumi.String("roles/container.clusterAdmin"),
+		},
+	},
 }

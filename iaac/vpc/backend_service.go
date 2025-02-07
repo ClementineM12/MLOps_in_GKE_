@@ -94,7 +94,7 @@ func createLoadbalancerBackendService(
 	resourceName := fmt.Sprintf("%s-glb-bs", projectConfig.ResourceNamePrefix)
 	gcpBackendService, err := compute.NewBackendService(ctx, resourceName, &compute.BackendServiceArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
-		Name:        pulumi.String(fmt.Sprintf("%s-bes", projectConfig.ResourceNamePrefix)),
+		Name:        pulumi.String(fmt.Sprintf("%s-backend-svc", projectConfig.ResourceNamePrefix)),
 		Description: pulumi.String("Global Load Balancer - Backend Service"),
 		CdnPolicy: &compute.BackendServiceCdnPolicyArgs{
 			ClientTtl:  pulumi.Int(5),

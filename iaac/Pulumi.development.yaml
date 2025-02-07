@@ -22,14 +22,14 @@ config:
 
   gke:loggingService: ogging.googleapis.com/kubernetes
   gke:monitoringService: monitoring.googleapis.com/kubernetes
-
-  istio:create: false
   
   storage:create: false
 
   ar:create: true 
+  ar:githubSACreate: true
   ar:githubRepo: "ClementineM12/MLOps"
+  ar:argoCDSACreate: true
 
-  argocd:create: true
+  argocd:create: false
   argocd:logLevel: INFO
   
