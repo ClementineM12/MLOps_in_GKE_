@@ -1,6 +1,0 @@
-apiVersion: v2
-name: kubeflow-core
-description: "A Helm chart to deploy Kubeflow components using ArgoCD"
-type: application
-version: 0.1-0
-appVersion: "1.7.0"
