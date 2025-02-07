@@ -25,11 +25,13 @@ config:
   
   storage:create: false
 
-  ar:create: true 
+  ar:create: false 
   ar:githubSACreate: true
   ar:githubRepo: "ClementineM12/MLOps"
   ar:argoCDSACreate: true
 
   argocd:create: false
   argocd:logLevel: INFO
+
+  
   

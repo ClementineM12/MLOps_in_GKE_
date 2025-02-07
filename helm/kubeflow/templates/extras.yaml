@@ -4,14 +4,13 @@
 {{- $argoCDNamespace := .glob.namespace }}
 {{- $argoCDReleaseName := .glob.release }}
 
-{{- $targetRevision := .extras.targetRevision }}
-{{- $repoURL := .extras.repoURL }}
 {{- $namespace := "kubeflow" }}
+{{- $wave := include "formatNumber" .config.wave }}
 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ kebabcase .component }}
+  name: {{ printf "%s-%s" $wave (kebabcase .component) }}
   namespace: {{ $argoCDNamespace }}
 {{- with .config }}
   annotations:
@@ -33,31 +32,25 @@ spec:
       - CreateNamespace=true
       {{- end }}
     automated: 
+      prune: true
       selfHeal: true
     managedNamespaceMetadata:
       labels:
         {{- dig "namespace" "labels" dict . | toYaml | nindent 8 }}
       annotations:
         {{- dig "namespace" "annotations" dict . | toYaml | nindent 8 }}
+  {{- with .source }}
   sources:
-    {{- with .source }}
-    - repoURL: {{ dig "repoURL" $repoURL . }}
-      targetRevision: {{ dig "targetRevision" $targetRevision . }}
-      kustomize: 
-        {{- dig "kustomize" dict . | toYaml | nindent 10 }}
-      {{- if .path }}
-      path: {{ .path }}
-      {{- end }}
-      {{- if .chart }}
-      chart: {{ .chart }}
+    - chart: {{ .chart }}
+      repoURL: {{ .repoURL }}
+      targetRevision: {{ .targetRevision }}
       helm:
         releaseName: {{ .helm.releaseName }}
         ignoreMissingValueFiles: {{ dig "helm" "ignoreMissingValueFiles" "true" . }}
         valueFiles: {{ dig "helm" "valueFiles" list . | toYaml | nindent 10 }}
         valuesObject: {{- dig "helm" "values" dict . | toYaml | nindent 10 }}
         parameters: {{ dig "helm" "parameters" list . | toYaml | nindent 10 }}
-      {{- end }}
-    {{- end }}
+  {{- end }}
   destination:
     namespace: {{ $namespace }}
     server: https://kubernetes.default.svc
@@ -65,12 +58,11 @@ spec:
 {{- end }}
 
 {{- $glob := .Values.global -}}
-{{- $extras := .Values.extras.global -}}
 {{- $input := dict -}}
 
-{{- range $component, $config := .Values.extras.components -}}
+{{- range $component, $config := .Values.extras -}}
 {{- if $config.enabled }}
-    {{- $input = dict "component" $component "config" $config "glob" $glob "extras" $extras -}}
+    {{- $input = dict "component" $component "config" $config "glob" $glob -}}
     {{- include "app.extras.yaml" $input | fromYaml | toYaml }}
 {{- end }}
 ---

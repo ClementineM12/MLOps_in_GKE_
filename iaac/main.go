@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "fmt"
+	"fmt"
 
 	"mlops/argocd"
 	"mlops/autoneg"
@@ -27,10 +27,10 @@ func main() {
 			registry.CreateArtifactRegistry(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
 		}
 
-		// err := CreateProjectResources(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
-		// if err != nil {
-		// 	return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
-		// }
+		err := CreateProjectResources(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+		if err != nil {
+			return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
+		}
 		return nil
 	})
 }

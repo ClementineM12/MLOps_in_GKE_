@@ -4,14 +4,15 @@
 {{- $argoCDNamespace := .glob.namespace }}
 {{- $argoCDReleaseName := .glob.release }}
 
-{{- $targetRevision := .istio.targetRevision }}
-{{- $repoURL := .istio.repoURL }}
+{{- $targetRevision := .glob.envs.targetRevision }}
+{{- $repoURL := .glob.envs.repoURL }}
 {{- $namespace := "istio-system" }}
+{{- $wave := include "formatNumber" .config.wave }}
 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ kebabcase .component }}
+  name: {{ printf "%s-%s" $wave (kebabcase .component) }}
   namespace: {{ $argoCDNamespace }}
 {{- with .config }}
   annotations:
@@ -33,29 +34,34 @@ spec:
       - CreateNamespace=true
       {{- end }}
     automated: 
+      prune: true
       selfHeal: true
     managedNamespaceMetadata:
       labels:
         {{- dig "namespace" "labels" dict . | toYaml | nindent 8 }}
       annotations:
         {{- dig "namespace" "annotations" dict . | toYaml | nindent 8 }}
+  {{- with .source }}
+  {{- if .path }}
+  source: 
+    path: {{ .path }}
+    repoURL: {{ dig "repoURL" $repoURL . }}
+    targetRevision: {{ dig "targetRevision" $targetRevision . }}
+    kustomize: 
+      {{- dig "kustomize" dict . | toYaml | nindent 10 }}
+  {{- else }}
   sources:
-    {{- with .source }}
-    - repoURL: {{ $repoURL }}
-      targetRevision: {{ $targetRevision }}
-      {{- if .path }}
-      path: {{ .path }}
-      {{- end }}
-      {{- if .chart }}
-      chart: {{ .chart }}
+    - chart: {{ .chart }}
+      repoURL: {{ dig "repoURL" $repoURL . }}
+      targetRevision: {{ dig "targetRevision" $targetRevision . }}
       helm:
         releaseName: {{ .helm.releaseName }}
         ignoreMissingValueFiles: {{ dig "helm" "ignoreMissingValueFiles" "true" . }}
         valueFiles: {{ dig "helm" "valueFiles" list . | toYaml | nindent 10 }}
         valuesObject: {{- dig "helm" "values" dict . | toYaml | nindent 10 }}
         parameters: {{ dig "helm" "parameters" list . | toYaml | nindent 10 }}
-      {{- end }}
-    {{- end }}
+  {{- end }}
+  {{- end }}
   destination:
     namespace: {{ $namespace }}
     server: https://kubernetes.default.svc
@@ -63,12 +69,11 @@ spec:
 {{- end }}
 
 {{- $glob := .Values.global -}}
-{{- $istio := .Values.istio.global -}}
 {{- $input := dict -}}
 
-{{- range $component, $config := .Values.istio.components -}}
+{{- range $component, $config := .Values.istio -}}
 {{- if $config.enabled }}
-    {{- $input = dict "component" $component "config" $config "glob" $glob "istio" $istio -}}
+    {{- $input = dict "component" $component "config" $config "glob" $glob -}}
     {{- include "app.istio.yaml" $input | fromYaml | toYaml }}
 {{- end }}
 ---

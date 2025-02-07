@@ -1,17 +1,19 @@
-{{- define "app.kubeflow-components.yaml" -}}
+{{- define "app.kubeflow.yaml" -}}
 
 {{- $project := .glob.project }}
 {{- $argoCDNamespace := .glob.namespace }}
 {{- $argoCDReleaseName := .glob.release }}
 
-{{- $targetRevision := .kubeflow.targetRevision }}
-{{- $repoURL := .kubeflow.repoURL }}
+{{- $targetRevision := .glob.envs.targetRevision }}
+{{- $repoURL := .glob.envs.repoURL }}
 {{- $namespace := "kubeflow" }}
+
+{{- $wave := include "formatNumber" .config.wave }}
 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ kebabcase .component }}
+  name: {{ printf "%s-%s" $wave (kebabcase .component) }}
   namespace: {{ $argoCDNamespace }}
 {{- with .config }}
   annotations:
@@ -29,35 +31,39 @@ spec:
     syncOptions:
       - ApplyOutOfSyncOnly=true
       - ServerSideApply=true
+      - Force=true
       {{- if dig "namespace" "create" "" . }}
       - CreateNamespace=true
       {{- end }}
     automated: 
+      prune: true
       selfHeal: true
     managedNamespaceMetadata:
       labels:
         {{- dig "namespace" "labels" dict . | toYaml | nindent 8 }}
       annotations:
         {{- dig "namespace" "annotations" dict . | toYaml | nindent 8 }}
+  {{- with .source }}
+  {{- if .path }}
+  source: 
+    path: {{ .path }}
+    repoURL: {{ dig "repoURL" $repoURL . }}
+    targetRevision: {{ dig "targetRevision" $targetRevision . }}
+    kustomize: 
+      {{- dig "kustomize" dict . | toYaml | nindent 10 }}
+  {{- else }}
   sources:
-    {{- with .source }}
-    - repoURL: {{ dig "repoURL" $repoURL . }}
+    - chart: {{ .chart }}
+      repoURL: {{ dig "repoURL" $repoURL . }}
       targetRevision: {{ dig "targetRevision" $targetRevision . }}
-      kustomize: 
-        {{- dig "kustomize" dict . | toYaml | nindent 10 }}
-      {{- if .path }}
-      path: {{ .path }}
-      {{- end }}
-      {{- if .chart }}
-      chart: {{ .chart }}
       helm:
         releaseName: {{ .helm.releaseName }}
         ignoreMissingValueFiles: {{ dig "helm" "ignoreMissingValueFiles" "true" . }}
         valueFiles: {{ dig "helm" "valueFiles" list . | toYaml | nindent 10 }}
         valuesObject: {{- dig "helm" "values" dict . | toYaml | nindent 10 }}
         parameters: {{ dig "helm" "parameters" list . | toYaml | nindent 10 }}
-      {{- end }}
-    {{- end }}
+  {{- end }}
+  {{- end }}
   destination:
     namespace: {{ $namespace }}
     server: https://kubernetes.default.svc
@@ -65,13 +71,13 @@ spec:
 {{- end }}
 
 {{- $glob := .Values.global -}}
-{{- $kubeflow := .Values.kubeflow.global -}}
+{{- $kubeflowComponents := merge .Values.common .Values.oauth .Values.apps .Values.contrib -}}
 {{- $input := dict -}}
 
-{{- range $component, $config := .Values.kubeflow.components -}}
+{{- range $component, $config := $kubeflowComponents -}}
 {{- if $config.enabled }}
-    {{- $input = dict "component" $component "config" $config "glob" $glob "kubeflow" $kubeflow -}}
-    {{- include "app.kubeflow-components.yaml" $input | fromYaml | toYaml }}
+    {{- $input = dict "component" $component "config" $config "glob" $glob -}}
+    {{- include "app.kubeflow.yaml" $input | fromYaml | toYaml }}
 {{- end }}
 ---
 {{ end -}}
