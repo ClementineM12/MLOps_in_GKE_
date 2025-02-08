@@ -87,65 +87,25 @@ func createVPCNetwork(
 	return gcpNetwork, err
 }
 
-// createFirewallRuleHealthChecks creates a firewall rule that allows incoming TCP traffic (ports 80, 8080, 443) for health checks used by services like load balancers.
-// The allowed source ranges are from IP blocks 35.191.0.0/16 and 130.211.0.0/22, which are Google Cloud’s health check sources (https://cloud.google.com/load-balancing/docs/health-check-concepts#ip-ranges).
-func createFirewallRuleHealthChecks(
+// createVPCSubnet reates a subnetwork (subnet) within the VPC.
+// The subnet is created in a specific region defined by CloudRegion and the network is linked to the VPC network.
+// It enables Private IP Google Access, which allows instances in the subnet to access Google APIs and services over private IPs.
+func createVPCSubnet(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
+	region global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
-) (*compute.Firewall, error) {
+) (*compute.Subnetwork, error) {
 
-	resourceName := fmt.Sprintf("%s-fw-allow-health-checks", projectConfig.ResourceNamePrefix)
-	firewallHealthCheck, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
-		Project:     pulumi.String(projectConfig.ProjectId),
-		Name:        pulumi.String(resourceName),
-		Description: pulumi.String("FW - Allow - Ingress - TCP Health Checks"),
-		Network:     gcpNetwork,
-		Allows: compute.FirewallAllowArray{
-			&compute.FirewallAllowArgs{
-				Protocol: pulumi.String("tcp"),
-				Ports: pulumi.StringArray{
-					pulumi.String("80"),
-					pulumi.String("8080"),
-					pulumi.String("443"),
-				},
-			},
-		},
-		SourceRanges: GoogleCloudIPRange,
+	resourceName := fmt.Sprintf("%s-vpc-subnet-%s", projectConfig.ResourceNamePrefix, region.Region)
+	gcpSubnetwork, err := compute.NewSubnetwork(ctx, resourceName, &compute.SubnetworkArgs{
+		Project:               pulumi.String(projectConfig.ProjectId),
+		Name:                  pulumi.String(resourceName),
+		Description:           pulumi.String(fmt.Sprintf("VPC Subnet - %s", region.Region)),
+		IpCidrRange:           pulumi.String(region.SubnetIp),
+		Region:                pulumi.String(region.Region),
+		Network:               gcpNetwork,
+		PrivateIpGoogleAccess: pulumi.Bool(true),
 	})
-	return firewallHealthCheck, err
-}
-
-// createFirewallInbound creates a firewall rule to allow inbound TCP traffic on ports 80, 8080, and 443,
-// typically used for load balancer communication with applications within the VPC.
-func createFirewallInbound(
-	ctx *pulumi.Context,
-	projectConfig global.ProjectConfig,
-	gcpNetwork pulumi.StringInput,
-) (*compute.Firewall, error) {
-
-	resourceName := fmt.Sprintf("%s-fw-allow-cluster-app", projectConfig.ResourceNamePrefix)
-	firewallInbound, err := compute.NewFirewall(ctx, resourceName, &compute.FirewallArgs{
-		Project:     pulumi.String(projectConfig.ProjectId),
-		Name:        pulumi.String(resourceName),
-		Description: pulumi.String("FW - Allow - Ingress - Load Balancer to Application"),
-		Network:     gcpNetwork,
-		Allows: compute.FirewallAllowArray{
-			&compute.FirewallAllowArgs{
-				Protocol: pulumi.String("tcp"),
-				Ports: pulumi.StringArray{
-					pulumi.String("80"),
-					pulumi.String("8080"),
-					pulumi.String("443"),
-				},
-			},
-		},
-		SourceRanges: pulumi.StringArray{
-			pulumi.String("0.0.0.0/0"),
-		},
-		TargetTags: pulumi.StringArray{
-			pulumi.String("gke-app-access"),
-		},
-	})
-	return firewallInbound, err
+	return gcpSubnetwork, err
 }

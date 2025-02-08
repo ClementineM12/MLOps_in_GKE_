@@ -11,6 +11,7 @@ import (
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
 
 // CreateVPCResources provisions a VPC network along with necessary load balancing resources.
@@ -27,46 +28,56 @@ func CreateVPCResources(
 	if err != nil {
 		return nil, nil, err
 	}
-	gcpBackendService, err := createLoadBalancerBackendService(ctx, projectConfig, opts...)
-	if err != nil {
-		return nil, nil, err
-	}
-	gcpGlobalAddress, err := createLoadBalancerStaticIP(ctx, projectConfig, opts...)
-	if err != nil {
-		return nil, nil, err
-	}
-	if projectConfig.SSL {
-		err = configureSSLCertificate(ctx, projectConfig, gcpBackendService, gcpGlobalAddress, opts...)
+
+	if config.GetBool(ctx, "vpc:loadBalancer") {
+		gcpBackendService, err := createLoadBalancerBackendService(ctx, projectConfig, opts...)
 		if err != nil {
 			return nil, nil, err
 		}
+		gcpGlobalAddress, err := createLoadBalancerStaticIP(ctx, projectConfig, opts...)
+		if err != nil {
+			return nil, nil, err
+		}
+		if projectConfig.SSL {
+			err = configureSSLCertificate(ctx, projectConfig, gcpBackendService, gcpGlobalAddress, opts...)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		err = createLoadBalancerURLMapHTTP(ctx, projectConfig, gcpGlobalAddress, gcpBackendService)
+		if err != nil {
+			return nil, nil, err
+		}
+		return gcpNetwork, gcpBackendService, nil
 	}
-	err = createLoadBalancerURLMapHTTP(ctx, projectConfig, gcpGlobalAddress, gcpBackendService)
-	if err != nil {
-		return nil, nil, err
-	}
-	return gcpNetwork, gcpBackendService, nil
+	return gcpNetwork, nil, nil
 }
 
-// CreateVPCSubnet reates a subnetwork (subnet) within the VPC.
-// The subnet is created in a specific region defined by CloudRegion and the network is linked to the VPC network.
-// It enables Private IP Google Access, which allows instances in the subnet to access Google APIs and services over private IPs.
-func CreateVPCSubnet(
+func CreateVPCSubnetResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	region global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 ) (*compute.Subnetwork, error) {
+	gcpSubnetwork, err := createVPCSubnet(ctx, projectConfig, region, gcpNetwork)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create subnetwork: %w", err)
+	}
 
-	resourceName := fmt.Sprintf("%s-vpc-subnet-%s", projectConfig.ResourceNamePrefix, region.Region)
-	gcpSubnetwork, err := compute.NewSubnetwork(ctx, resourceName, &compute.SubnetworkArgs{
-		Project:               pulumi.String(projectConfig.ProjectId),
-		Name:                  pulumi.String(resourceName),
-		Description:           pulumi.String(fmt.Sprintf("VPC Subnet - %s", region.Region)),
-		IpCidrRange:           pulumi.String(region.SubnetIp),
-		Region:                pulumi.String(region.Region),
-		Network:               gcpNetwork,
-		PrivateIpGoogleAccess: pulumi.Bool(true),
-	})
-	return gcpSubnetwork, fmt.Errorf("failed to create subnetwork: %w", err)
+	if config.GetBool(ctx, "gke:privateNodes") {
+		cloudRouter, err := createCloudRouter(ctx, projectConfig, region, gcpNetwork)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create router: %w", err)
+		}
+		err = createCloudNAT(ctx, projectConfig, region, cloudRouter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create NAT: %w", err)
+		}
+		err = createFirewallEgress(ctx, projectConfig, gcpNetwork)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Firewall Egress: %w", err)
+		}
+		return gcpSubnetwork, nil
+	}
+	return gcpSubnetwork, nil
 }

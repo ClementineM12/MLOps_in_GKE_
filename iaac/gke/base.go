@@ -3,8 +3,10 @@ package gke
 import (
 	"fmt"
 	"mlops/global"
+	"mlops/iam"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -22,15 +24,29 @@ func CreateGKEResources(
 
 	config := Configuration(ctx)
 
-	gcpServiceAccount, serviceAccountMember, err := gkeConfigConnectorIAM(ctx, projectConfig)
-	if err != nil {
-		return nil, nil, err
+	var (
+		serviceAccountMember pulumi.StringArrayOutput
+		serviceAccount       *serviceaccount.Account
+		err                  error
+	)
+
+	if projectConfig.Target == "management" {
+		serviceAccount, serviceAccountMember, err = gkeConfigConnectorIAM(ctx, projectConfig)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		serviceAccount, _, err = iam.CreateServiceAccount(ctx, projectConfig, "Admin")
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork)
+
+	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork) // [TO RESOLVE] The service account is not properly assigned to the cluster
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE: %w", err)
 	}
-	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), gcpServiceAccount)
+	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), serviceAccount)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}

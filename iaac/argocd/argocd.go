@@ -13,7 +13,7 @@ import (
 
 var (
 	argocdNamespace        = "argocd"
-	argocdHelmChartVersion = "7.7.21"
+	argocdHelmChartVersion = "7.7.21" // App Version : v2.13.3
 	argocdValuesPath       = "argocd/values/values.yaml"
 	argocdHelm             = "https://argoproj.github.io/argo-helm"
 )
@@ -49,7 +49,7 @@ func DeployArgoCD(
 	if err != nil {
 		return err
 	}
-	_, err = getValues(argocdValuesPath)
+	values, err := getValues(argocdValuesPath)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func DeployArgoCD(
 		FetchArgs: helm.FetchArgs{
 			Repo: pulumi.String(argocdHelm),
 		},
-		// Values:    values,
+		Values:    values,
 		Namespace: namespace.ID(),
 	},
 		pulumi.Provider(k8sProvider),

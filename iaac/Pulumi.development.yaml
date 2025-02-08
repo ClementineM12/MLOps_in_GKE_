@@ -2,9 +2,10 @@ config:
   gcp:project: mlops-development-project
   gcp:region: europe-west8
 
-  project:prefix: ml
+  project:prefix: ml-01
 
   vpc:regions: "009"
+  vpc:loadBalancer: false
   
   gke:target: deployment
   gke:cidr: 0.0.0.0/0
@@ -16,6 +17,7 @@ config:
   gke:nodePoolMaxNodeCount: 3 # Recommended to be 8
   gke:nodePoolInitialNodeCount: 2
   gke:nodePoolPreemptible: false
+  gke:privateNodes: true
 
   gke:managementAutoRepair: true
   gke:managementAutoUpgrade: true
@@ -30,8 +32,6 @@ config:
   ar:githubRepo: "ClementineM12/MLOps"
   ar:argoCDSACreate: true
 
-  argocd:create: false
+  argocd:create: true
   argocd:logLevel: INFO
-
-  
   

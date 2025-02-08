@@ -3,9 +3,10 @@ package iam
 import (
 	"fmt"
 	"mlops/global"
+	"strings"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/projects"
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/serviceaccount"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/projects"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -36,12 +37,14 @@ func createIAMRole(
 	svc *svc,
 ) (*projects.IAMCustomRole, error) {
 
+	roleIDResourceNamePrefix := strings.ReplaceAll(projectConfig.ResourceNamePrefix, "-", "_") // It must match regexp "^[a-zA-Z0-9_\\.]{3,64}$"
+
 	resourceName := fmt.Sprintf("%s-iam-custom-role-%s", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
 	gcpIAMRole, err := projects.NewIAMCustomRole(ctx, resourceName, &projects.IAMCustomRoleArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
 		Description: pulumi.String(svc.Description),
 		Permissions: svc.Permissions,
-		RoleId:      pulumi.String(fmt.Sprintf("%s_iam_role_%s", projectConfig.ResourceNamePrefix, svc.IAMRoleId)),
+		RoleId:      pulumi.String(fmt.Sprintf("%s_iam_role_%s", roleIDResourceNamePrefix, svc.IAMRoleId)),
 		Title:       pulumi.String(svc.Title),
 	})
 	return gcpIAMRole, err
@@ -61,7 +64,7 @@ func createIAMRoleBinding(
 	gcpIAMRoleBinding, err := projects.NewIAMBinding(ctx, resourceName, &projects.IAMBindingArgs{
 		Members: serviceAccountMember,
 		Project: pulumi.String(projectConfig.ProjectId),
-		Role:    gcpIAMRole.RoleId,
+		Role:    gcpIAMRole.ID(),
 	}, pulumi.DependsOn([]pulumi.Resource{gcpServiceAccount}))
 
 	return gcpIAMRoleBinding, err

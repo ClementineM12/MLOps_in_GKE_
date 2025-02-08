@@ -41,8 +41,11 @@ func createGKE(
 		RemoveDefaultNodePool: pulumi.Bool(GKERemoveDefaultNodePool),
 		InitialNodeCount:      pulumi.Int(1),
 		EnableShieldedNodes:   pulumi.Bool(GKEEnableShieldedNodes),
+		// https://cloud.google.com/kubernetes-engine/docs/how-to/legacy/network-isolation
 		PrivateClusterConfig: &container.ClusterPrivateClusterConfigArgs{
-			EnablePrivateNodes: pulumi.Bool(GKEEnablePrivateNodes),
+			EnablePrivateNodes:    pulumi.Bool(GKEEnablePrivateNodes),
+			MasterIpv4CidrBlock:   pulumi.String(cloudRegion.MasterIpv4CidrBlock),
+			EnablePrivateEndpoint: pulumi.Bool(false),
 		},
 		MinMasterVersion: pulumi.String(config.NodePool.MinMasterVersion),
 		VerticalPodAutoscaling: &container.ClusterVerticalPodAutoscalingArgs{
@@ -64,6 +67,9 @@ func createGKE(
 				Enabled: pulumi.Bool(true),
 			},
 		},
+		// NodeConfig: &container.ClusterNodeConfigArgs{
+		// 	ServiceAccount: serviceAccount.Email,
+		// },
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Kubernetes Cluster: %w", err)
@@ -86,7 +92,7 @@ func createGKENodePool(
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	clusterID pulumi.StringInput,
-	gcpServiceAccount *serviceaccount.Account,
+	serviceAccount *serviceaccount.Account,
 ) (*container.NodePool, error) {
 
 	resourceName := fmt.Sprintf("%s-gke-%s-np", projectConfig.ResourceNamePrefix, cloudRegion.Region)
@@ -102,7 +108,7 @@ func createGKENodePool(
 			Labels:         config.NodePool.ResourceLabels,
 			DiskType:       pulumi.String(config.NodePool.DiskType),
 			DiskSizeGb:     pulumi.Int(config.NodePool.DiskSizeGb),
-			ServiceAccount: gcpServiceAccount.Email,
+			ServiceAccount: serviceAccount.Email,
 			KubeletConfig: &container.NodePoolNodeConfigKubeletConfigArgs{
 				CpuCfsQuota:       pulumi.Bool(false),
 				CpuCfsQuotaPeriod: pulumi.String(""),

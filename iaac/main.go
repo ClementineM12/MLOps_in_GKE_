@@ -44,7 +44,7 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 
 	// Process Each Cloud Region
 	for _, cloudRegion := range projectConfig.EnabledRegions {
-		gcpSubnetwork, err := vpc.CreateVPCSubnet(ctx, projectConfig, cloudRegion, gcpNetwork.ID())
+		gcpSubnetwork, err := vpc.CreateVPCSubnetResources(ctx, projectConfig, cloudRegion, gcpNetwork.ID())
 		if err != nil {
 			return err
 		}
@@ -53,20 +53,29 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 		if err != nil {
 			return err
 		}
-		negReady, err := autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
-		if err != nil {
-			return err
-		}
-		// --------------------------- ArgoCD ----------------------------
-		negReady.ApplyT(func(_ interface{}) error {
-			if config.GetBool(ctx, "argocd:create") {
-				err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
-				if err != nil {
-					return err
-				}
+
+		if config.GetBool(ctx, "vpc.autoNEG") {
+			negReady, err := autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
+			if err != nil {
+				return err
 			}
-			return nil
-		})
+			// --------------------------- ArgoCD ----------------------------
+			negReady.ApplyT(func(_ interface{}) error {
+				if config.GetBool(ctx, "argocd:create") {
+					err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+		}
+		if config.GetBool(ctx, "argocd:create") {
+			err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

@@ -29,3 +29,5 @@ gcloud projects add-iam-policy-binding PROJECT \
 ```
 
 [Extra Docs](https://mouliveera.medium.com/permissions-error-required-compute-instancegroups-update-permission-for-project-8a7f759c30c2)
+
+Resolved: https://github.com/pulumi/pulumi/discussions/15902

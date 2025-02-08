@@ -26,10 +26,11 @@ type ProjectConfig struct {
 }
 
 type CloudRegion struct {
-	Id             string
-	Country        string
-	Region         string
-	SubnetIp       string
-	GKECluster     *container.Cluster
-	GKEClusterName string
+	Id                  string
+	Country             string
+	Region              string
+	SubnetIp            string
+	GKECluster          *container.Cluster
+	GKEClusterName      string
+	MasterIpv4CidrBlock string
 }
