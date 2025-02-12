@@ -3,18 +3,19 @@ config:
   gcp:region: europe-west8
 
   project:prefix: ml-01
-
+  # project:domain: "cl-mlrun-test.tedmosbyisajerk.cc"
+  
   vpc:regions: "009"
   vpc:loadBalancer: false
+  vpc.autoNEG: false
   
   gke:target: deployment
-  gke:cidr: 0.0.0.0/0
 
-  gke:nodePoolMachineType: n2-standard-2
+  gke:nodePoolMachineType: e2-standard-2
   gke:nodePoolDiskSizeGb: 100
   gke:nodePoolDiskType: pd-standard
   gke:nodePoolMinNodeCount: 2
-  gke:nodePoolMaxNodeCount: 3 # Recommended to be 8
+  gke:nodePoolMaxNodeCount: 8
   gke:nodePoolInitialNodeCount: 2
   gke:nodePoolPreemptible: false
   gke:privateNodes: true
@@ -25,13 +26,13 @@ config:
   gke:loggingService: ogging.googleapis.com/kubernetes
   gke:monitoringService: monitoring.googleapis.com/kubernetes
   
-  storage:create: false
+  storage:create: true
 
   ar:create: false 
   ar:githubSACreate: true
   ar:githubRepo: "ClementineM12/MLOps"
   ar:argoCDSACreate: true
 
-  argocd:create: true
+  argocd:create: false
   argocd:logLevel: INFO
   

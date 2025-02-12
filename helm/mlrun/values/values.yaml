@@ -1,0 +1,11 @@
+# -- https://github.com/v3io/helm-charts/blob/development/stable/mlrun-kit/values.yaml
+jupyterNotebook:
+  persistence:
+    enabled: true
+    size: "30Gi"
+
+minio:
+  persistence:
+    enabled: true
+    size: 30Gi
+

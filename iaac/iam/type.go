@@ -13,4 +13,6 @@ type svc struct {
 	IAMRoleId          string
 	Permissions        pulumi.StringArray
 	createRole         bool
+	Roles              []string
+	createMember       bool
 }

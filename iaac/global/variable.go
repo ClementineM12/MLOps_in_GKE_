@@ -7,6 +7,7 @@ var gcpServices = map[string][]string{
 		"compute.googleapis.com",
 		"container.googleapis.com",
 		"iam.googleapis.com",
+		"servicenetworking.googleapis.com",
 		"servicemanagement.googleapis.com",
 		"cloudresourcemanager.googleapis.com",
 		"ml.googleapis.com",
@@ -17,14 +18,10 @@ var gcpServices = map[string][]string{
 		"servicecontrol.googleapis.com",
 		"endpoints.googleapis.com",
 		"cloudbuild.googleapis.com",
+		"certificatemanager.googleapis.com",
 		// "artifactregistry.googleapis.com",
 		// OIDC
 		"securitycenter.googleapis.com",
-	},
-	"management": {
-		"krmapihosting.googleapis.com",
-		"compute.googleapis.com",
-		"container.googleapis.com",
 	},
 }
 

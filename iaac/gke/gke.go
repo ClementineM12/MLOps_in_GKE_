@@ -8,13 +8,12 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
 
 var (
 	GKEDeletionProtection    = false // We set this to false since we need to be able to destroy the cluster without interuptions, else the `pulumi destroy` will fail
 	GKERemoveDefaultNodePool = true
-	GKEEnableShieldedNodes   = true
-	GKEEnablePrivateNodes    = true
 	GKEReleaseChannel        = "REGULAR"
 )
 
@@ -23,13 +22,28 @@ var (
 // It returns the created GKE cluster object, which is used by subsequent resources such as node pools and Kubernetes providers.
 func createGKE(
 	ctx *pulumi.Context,
-	config *ClusterConfig,
+	ClusterConfig *ClusterConfig,
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 	gcpSubnetwork pulumi.StringInput,
 ) (*container.Cluster, *kubernetes.Provider, error) {
 
+	privateNodesEnabled := config.GetBool(ctx, "gke:privateNodes")
+
+	privateClusterConfig := &container.ClusterPrivateClusterConfigArgs{}
+	if privateNodesEnabled {
+		// https://cloud.google.com/kubernetes-engine/docs/how-to/legacy/network-isolation
+		privateClusterConfig = &container.ClusterPrivateClusterConfigArgs{
+			EnablePrivateNodes:    pulumi.Bool(privateNodesEnabled),
+			MasterIpv4CidrBlock:   pulumi.String(cloudRegion.MasterIpv4CidrBlock),
+			EnablePrivateEndpoint: pulumi.Bool(false),
+		}
+	} else {
+		privateClusterConfig = &container.ClusterPrivateClusterConfigArgs{
+			EnablePrivateNodes: pulumi.Bool(privateNodesEnabled),
+		}
+	}
 	cloudRegion.GKEClusterName = fmt.Sprintf("%s-gke-%s", projectConfig.ResourceNamePrefix, cloudRegion.Region)
 	gcpGKECluster, err := container.NewCluster(ctx, cloudRegion.GKEClusterName, &container.ClusterArgs{
 		Project:               pulumi.String(projectConfig.ProjectId),
@@ -40,21 +54,16 @@ func createGKE(
 		DeletionProtection:    pulumi.Bool(GKEDeletionProtection),
 		RemoveDefaultNodePool: pulumi.Bool(GKERemoveDefaultNodePool),
 		InitialNodeCount:      pulumi.Int(1),
-		EnableShieldedNodes:   pulumi.Bool(GKEEnableShieldedNodes),
-		// https://cloud.google.com/kubernetes-engine/docs/how-to/legacy/network-isolation
-		PrivateClusterConfig: &container.ClusterPrivateClusterConfigArgs{
-			EnablePrivateNodes:    pulumi.Bool(GKEEnablePrivateNodes),
-			MasterIpv4CidrBlock:   pulumi.String(cloudRegion.MasterIpv4CidrBlock),
-			EnablePrivateEndpoint: pulumi.Bool(false),
-		},
-		MinMasterVersion: pulumi.String(config.NodePool.MinMasterVersion),
+		// EnableShieldedNodes:   pulumi.Bool(privateNodesEnabled),
+		PrivateClusterConfig: privateClusterConfig,
+		MinMasterVersion:     pulumi.String(ClusterConfig.NodePool.MinMasterVersion),
 		VerticalPodAutoscaling: &container.ClusterVerticalPodAutoscalingArgs{
 			Enabled: pulumi.Bool(true),
 		},
 		ReleaseChannel: &container.ClusterReleaseChannelArgs{
 			Channel: pulumi.String(GKEReleaseChannel),
 		},
-		ResourceLabels: config.NodePool.ResourceLabels,
+		ResourceLabels: ClusterConfig.NodePool.ResourceLabels,
 		WorkloadIdentityConfig: &container.ClusterWorkloadIdentityConfigArgs{
 			WorkloadPool: pulumi.String(fmt.Sprintf("%s.svc.id.goog", projectConfig.ProjectId)),
 		},
@@ -67,9 +76,8 @@ func createGKE(
 				Enabled: pulumi.Bool(true),
 			},
 		},
-		// NodeConfig: &container.ClusterNodeConfigArgs{
-		// 	ServiceAccount: serviceAccount.Email,
-		// },
+		LoggingService:    pulumi.String("logging.googleapis.com/kubernetes"),
+		MonitoringService: pulumi.String("monitoring.googleapis.com/kubernetes"),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Kubernetes Cluster: %w", err)
@@ -88,7 +96,7 @@ func createGKE(
 // This function returns the created node pool object, which is used to manage the nodes within the GKE cluster.
 func createGKENodePool(
 	ctx *pulumi.Context,
-	config *ClusterConfig,
+	ClusterConfig *ClusterConfig,
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	clusterID pulumi.StringInput,
@@ -101,14 +109,17 @@ func createGKENodePool(
 		Name:      pulumi.String(resourceName),
 		NodeCount: pulumi.Int(1),
 		NodeConfig: &container.NodePoolNodeConfigArgs{
-			Metadata:       config.NodePool.Metadata,
-			Preemptible:    pulumi.Bool(config.NodePool.Preemptible),
-			MachineType:    pulumi.String(config.NodePool.MachineType),
-			OauthScopes:    config.NodePool.OauthScopes,
-			Labels:         config.NodePool.ResourceLabels,
-			DiskType:       pulumi.String(config.NodePool.DiskType),
-			DiskSizeGb:     pulumi.Int(config.NodePool.DiskSizeGb),
+			Metadata:       ClusterConfig.NodePool.Metadata,
+			Preemptible:    pulumi.Bool(ClusterConfig.NodePool.Preemptible),
+			MachineType:    pulumi.String(ClusterConfig.NodePool.MachineType),
+			OauthScopes:    ClusterConfig.NodePool.OauthScopes,
+			Labels:         ClusterConfig.NodePool.ResourceLabels,
+			DiskType:       pulumi.String(ClusterConfig.NodePool.DiskType),
+			DiskSizeGb:     pulumi.Int(ClusterConfig.NodePool.DiskSizeGb),
 			ServiceAccount: serviceAccount.Email,
+			ResourceLabels: pulumi.StringMap{
+				"goog-gke-node-pool-provisioning-model": pulumi.String("on-demand"),
+			},
 			KubeletConfig: &container.NodePoolNodeConfigKubeletConfigArgs{
 				CpuCfsQuota:       pulumi.Bool(false),
 				CpuCfsQuotaPeriod: pulumi.String(""),
@@ -119,20 +130,18 @@ func createGKENodePool(
 			// Note: Enabling Workload Identity on an existing cluster does not automatically enable Workload Identity on the cluster's existing node pools.
 			//           We recommend that you enable Workload Identity on all your cluster's node pools since Config Connector could run on any of them.
 			//           https://cloud.google.com/config-connector/docs/how-to/install-upgrade-uninstall#prerequisites
-			WorkloadMetadataConfig: &container.NodePoolNodeConfigWorkloadMetadataConfigArgs{
-				Mode: pulumi.String("GKE_METADATA"),
-			},
+			WorkloadMetadataConfig: ClusterConfig.NodePool.WorkloadMetadataConfig,
 		},
 		Autoscaling: &container.NodePoolAutoscalingArgs{
 			LocationPolicy: pulumi.String("BALANCED"),
-			MaxNodeCount:   pulumi.Int(config.NodePool.MaxNodeCount),
-			MinNodeCount:   pulumi.Int(config.NodePool.MinNodeCount),
+			MaxNodeCount:   pulumi.Int(ClusterConfig.NodePool.MaxNodeCount),
+			MinNodeCount:   pulumi.Int(ClusterConfig.NodePool.MinNodeCount),
 		},
 		Management: &container.NodePoolManagementArgs{
-			AutoRepair:  pulumi.Bool(config.Management.AutoRepair),
-			AutoUpgrade: pulumi.Bool(config.Management.AutoUpgrade),
+			AutoRepair:  pulumi.Bool(ClusterConfig.Management.AutoRepair),
+			AutoUpgrade: pulumi.Bool(ClusterConfig.Management.AutoUpgrade),
 		},
-	})
+	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount}))
 
 	return gcpGKENodePool, err
 }

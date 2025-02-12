@@ -41,9 +41,6 @@ configs:
   cm:
     # -- Create the argocd-cm configmap for [declarative setup]
     create: true
-  
-  params: 
-    redis.compression: none
 
   # Argo CD sensitive data
   # Ref: https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets

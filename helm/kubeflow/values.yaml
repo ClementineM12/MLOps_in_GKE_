@@ -37,7 +37,7 @@ istio:
       create: true
       labels:
         istio-operator-managed: Reconcile
-        istio-injection: disabled
+        istio-injection: enabled
     source:
       path: common/istio-1-22/istio-crds/base
   oauthProxyConfiguration:
@@ -99,7 +99,7 @@ common:
       create: true
       labels:
         control-plane: kubeflow
-        istio-injection: enabled
+        # istio-injection: enabled
         katib.kubeflow.org/metrics-collector-injection: enabled
     wave: 9
     source:
@@ -119,25 +119,6 @@ common:
     wave: 40
     source:
       path: common/user-namespace/base
-      kustomize:
-        patches:
-          - target:
-              kind: Profile
-              name: kubeflow-user-example-com
-            patch: |-
-              - op: add
-                path: /spec
-                value: |
-                    {
-                        "plugins" : [
-                            {
-                              "kind": "WorkloadIdentity",
-                              "spec": {
-                                  "gcpServiceAccount": "svc-gke-admin@mlops-development-project.iam.gserviceaccount.com"
-                              }
-                            }
-                        ]
-                    }
 
 # -- Apps 
 # Apps are the main Kubeflow components that provide machine learning capabilities.
@@ -148,7 +129,7 @@ apps:
     enabled: true
     wave: 14
     source:
-      path: apps/pipeline/upstream/env/gcp
+      path: apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user
   # -- Katib
   # Katib is a scalable and flexible hyperparameter tuning framework for Kubernetes.
   katib:
@@ -169,7 +150,7 @@ apps:
     enabled: true
     wave: 22
     source:
-      path: apps/admission-webhook/upstream/overlays/cert-manager 
+      path: apps/admission-webhook/upstream/overlays/cert-manager
   # -- Notebooks 1.0
   # -- Notebook Controller
   # The Notebook Controller is a Kubernetes controller that manages Jupyter notebooks.

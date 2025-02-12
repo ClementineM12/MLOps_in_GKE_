@@ -31,11 +31,23 @@ First, create and deploy your **IaC resources**:
 ```sh
 cd iaac
 pulumi up
+cd ..
 ```
 This will provision all necessary GCP resources.
 
+Once, everything is up and running, connect to the cluster:
+```sh
+gcloud container clusters get-credentials CLUSTER_NAME --region REGION --project PROJECT_ID
+```
 
-## 🎯 Access ArgoCD
+## 🎯 Deploy and Access ArgoCD
+
+Get `helm-chart` and deploy:
+```sh
+helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
+helm install argocd argo/argo-cd --namespace argocd --create-namespace --values helm/argocd/values.yaml 
+```
+
 Retrieve ArgoCD Admin Credentials:
 
 ```sh

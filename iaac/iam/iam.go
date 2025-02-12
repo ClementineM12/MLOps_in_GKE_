@@ -69,3 +69,25 @@ func createIAMRoleBinding(
 
 	return gcpIAMRoleBinding, err
 }
+
+func createIAMPolicyMembers(
+	ctx *pulumi.Context,
+	projectConfig global.ProjectConfig,
+	svc *svc,
+	serviceAccountMember pulumi.StringArrayOutput,
+) error {
+	roles := svc.Roles
+
+	for _, role := range roles {
+		sanitizedRoleName := strings.ReplaceAll(strings.Split(role, "/")[1], ".", "-")
+		_, err := projects.NewIAMMember(ctx, fmt.Sprintf("%s-%s", svc.AccountId, sanitizedRoleName), &projects.IAMMemberArgs{
+			Project: pulumi.String(projectConfig.ProjectId),
+			Role:    pulumi.String(role),
+			Member:  serviceAccountMember.Index(pulumi.Int(0)),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

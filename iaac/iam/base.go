@@ -36,5 +36,11 @@ func CreateServiceAccount(
 			return nil, pulumi.StringArrayOutput{}, fmt.Errorf("IAM Role Binding: %w", err)
 		}
 	}
+	if selectedSVC.createMember {
+		err := createIAMPolicyMembers(ctx, projectConfig, &selectedSVC, serviceAccountMember)
+		if err != nil {
+			return nil, pulumi.StringArrayOutput{}, fmt.Errorf("IAM Role Policy Members: %w", err)
+		}
+	}
 	return gcpServiceAccount, serviceAccountMember, nil
 }

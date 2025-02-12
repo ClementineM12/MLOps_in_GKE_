@@ -21,36 +21,13 @@ import (
 func CreateVPCResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	opts ...pulumi.ResourceOption,
-) (*compute.Network, *compute.BackendService, error) {
+) (*compute.Network, error) {
 
 	gcpNetwork, err := createVPC(ctx, projectConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	if config.GetBool(ctx, "vpc:loadBalancer") {
-		gcpBackendService, err := createLoadBalancerBackendService(ctx, projectConfig, opts...)
-		if err != nil {
-			return nil, nil, err
-		}
-		gcpGlobalAddress, err := createLoadBalancerStaticIP(ctx, projectConfig, opts...)
-		if err != nil {
-			return nil, nil, err
-		}
-		if projectConfig.SSL {
-			err = configureSSLCertificate(ctx, projectConfig, gcpBackendService, gcpGlobalAddress, opts...)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-		err = createLoadBalancerURLMapHTTP(ctx, projectConfig, gcpGlobalAddress, gcpBackendService)
-		if err != nil {
-			return nil, nil, err
-		}
-		return gcpNetwork, gcpBackendService, nil
-	}
-	return gcpNetwork, nil, nil
+	return gcpNetwork, nil
 }
 
 func CreateVPCSubnetResources(
@@ -80,4 +57,30 @@ func CreateVPCSubnetResources(
 		return gcpSubnetwork, nil
 	}
 	return gcpSubnetwork, nil
+}
+
+func CreateBackendServiceResources(
+	ctx *pulumi.Context,
+	projectConfig global.ProjectConfig,
+) (*compute.BackendService, error) {
+
+	gcpBackendService, err := createLoadBalancerBackendService(ctx, projectConfig)
+	if err != nil {
+		return nil, err
+	}
+	gcpGlobalAddress, err := createLoadBalancerStaticIP(ctx, projectConfig)
+	if err != nil {
+		return nil, err
+	}
+	if projectConfig.SSL {
+		err = configureSSLCertificate(ctx, projectConfig, gcpBackendService, gcpGlobalAddress)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = createLoadBalancerURLMapHTTP(ctx, projectConfig, gcpGlobalAddress, gcpBackendService)
+	if err != nil {
+		return nil, err
+	}
+	return gcpBackendService, nil
 }

@@ -35,7 +35,10 @@ func createClusterRoles(
 		}
 
 		if roleDef.Bind {
-			err = createClusterRoleBindings(ctx, projectConfig, k8sProvider, serviceAccount, clusterRole)
+			err = createClusterRoleBindings(ctx, projectConfig, k8sProvider, serviceAccount, roleDef.Name, clusterRole)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -47,13 +50,14 @@ func createClusterRoleBindings(
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 	serviceAccount *coreV1.ServiceAccount,
-	clusterRole *rbacV1.ClusterRole,
+	clusterRole string,
+	clusterRoleResource *rbacV1.ClusterRole,
 ) error {
 
-	resourceName := fmt.Sprintf("%s-%s-binding", projectConfig.ResourceNamePrefix, clusterRole.Metadata.Name())
+	resourceName := fmt.Sprintf("%s-%s-binding", projectConfig.ResourceNamePrefix, clusterRole)
 	_, err := rbacV1.NewClusterRoleBinding(ctx, resourceName, &rbacV1.ClusterRoleBindingArgs{
 		Metadata: &metaV1.ObjectMetaArgs{
-			Name: pulumi.String(fmt.Sprintf("%s-binding", clusterRole.Metadata.Name())),
+			Name: pulumi.String(fmt.Sprintf("%s-binding", clusterRole)),
 			Labels: pulumi.StringMap{
 				"app": pulumi.String("autoneg"),
 			},
@@ -62,7 +66,7 @@ func createClusterRoleBindings(
 		RoleRef: &rbacV1.RoleRefArgs{
 			ApiGroup: pulumi.String("rbac.authorization.k8s.io"),
 			Kind:     pulumi.String("ClusterRole"),
-			Name:     clusterRole.Metadata.Name().Elem(),
+			Name:     pulumi.String(clusterRole),
 		},
 		Subjects: rbacV1.SubjectArray{
 			&rbacV1.SubjectArgs{
@@ -73,11 +77,11 @@ func createClusterRoleBindings(
 		},
 	},
 		pulumi.Provider(k8sProvider),
-		pulumi.DependsOn([]pulumi.Resource{clusterRole}),
+		pulumi.DependsOn([]pulumi.Resource{clusterRoleResource}),
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to create cluster role binding %s: %w", clusterRole.ID(), err)
+		return fmt.Errorf("failed to create cluster role binding %s: %w", clusterRole, err)
 	}
 	return nil
 }
@@ -107,7 +111,10 @@ func createRoles(
 		}
 
 		if roleDef.Bind {
-			err = createRoleBindings(ctx, projectConfig, k8sProvider, serviceAccount, role)
+			err = createRoleBindings(ctx, projectConfig, k8sProvider, serviceAccount, roleDef.Name, role)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -119,13 +126,14 @@ func createRoleBindings(
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 	serviceAccount *coreV1.ServiceAccount,
-	role *rbacV1.Role,
+	role string,
+	roleResource *rbacV1.Role,
 ) error {
 
-	resourceName := fmt.Sprintf("%s-%s-binding", projectConfig.ResourceNamePrefix, role.Metadata.Name())
+	resourceName := fmt.Sprintf("%s-%s-binding", projectConfig.ResourceNamePrefix, role)
 	_, err := rbacV1.NewRoleBinding(ctx, resourceName, &rbacV1.RoleBindingArgs{
 		Metadata: &metaV1.ObjectMetaArgs{
-			Name: pulumi.String(fmt.Sprintf("%s-binding", role.Metadata.Name())),
+			Name: pulumi.String(fmt.Sprintf("%s-binding", role)),
 			Labels: pulumi.StringMap{
 				"app": pulumi.String("autoneg"),
 			},
@@ -134,7 +142,7 @@ func createRoleBindings(
 		RoleRef: &rbacV1.RoleRefArgs{
 			ApiGroup: pulumi.String("rbac.authorization.k8s.io"),
 			Kind:     pulumi.String("Role"),
-			Name:     role.Metadata.Name().Elem(),
+			Name:     pulumi.String(role),
 		},
 		Subjects: rbacV1.SubjectArray{
 			&rbacV1.SubjectArgs{
@@ -145,11 +153,11 @@ func createRoleBindings(
 		},
 	},
 		pulumi.Provider(k8sProvider),
-		pulumi.DependsOn([]pulumi.Resource{role}),
+		pulumi.DependsOn([]pulumi.Resource{roleResource}),
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to create role binding %s: %w", role.ID(), err)
+		return fmt.Errorf("failed to create role binding %s: %w", role, err)
 	}
 	return nil
 }

@@ -23,34 +23,49 @@ func createAutoNEGKubernetesResources(
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 	serviceAccountEmail pulumi.StringArrayOutput,
-) (pulumi.Output, error) {
+) pulumi.Output {
 
 	// Create Namespace
 	ns, err := createNamespace(ctx, projectConfig, k8sProvider)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create namespace for Auto NEG Controller [k8s]: %w", err)
+		ctx.Log.Warn("Failed to create namespace for Auto NEG Controller", nil)
+		return pulumi.StringOutput{}.ApplyT(func(_ string) string { return "Error: Namespace creation failed" })
 	}
+
 	// Create Service Account
 	autoNegServiceAccount, err := createServiceAccount(ctx, projectConfig, k8sProvider, serviceAccountEmail, ns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Service Account for Auto NEG Controller [k8s]: %w", err)
+		ctx.Log.Warn("Failed to create Service Account for Auto NEG Controller", nil)
+		return pulumi.StringOutput{}.ApplyT(func(_ string) string { return "Error: Service Account creation failed" })
 	}
+
 	// Create Roles and Bindings
 	err = createAutoNEGRBAC(ctx, projectConfig, k8sProvider, autoNegServiceAccount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create RBAC end-to-end for Auto NEG Controller [k8s]: %w", err)
+		ctx.Log.Warn("Failed to create RBAC for Auto NEG Controller", nil)
+		return pulumi.StringOutput{}.ApplyT(func(_ string) string { return "Error: RBAC setup failed" })
 	}
+
 	// Deploy AutoNEG Service
 	err = createAutoNegService(ctx, projectConfig, k8sProvider, ns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Service for Auto NEG Controller [k8s]: %w", err)
+		ctx.Log.Warn("Failed to create AutoNEG Service", nil)
+		return pulumi.StringOutput{}.ApplyT(func(_ string) string { return "Error: AutoNEG Service creation failed" })
 	}
+
 	// Deploy AutoNEG Controller
-	negDeployement, err := createAutoNegDeployment(ctx, projectConfig, k8sProvider, autoNegServiceAccount, ns)
+	negDeployment, err := createAutoNegDeployment(ctx, projectConfig, k8sProvider, autoNegServiceAccount, ns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Deployment for Auto NEG Controller [k8s]: %w", err)
+		ctx.Log.Warn("Failed to create AutoNEG Deployment", nil)
+		return pulumi.StringOutput{}.ApplyT(func(_ string) string { return "Error: AutoNEG Deployment failed" })
 	}
-	return negDeployement.Status.ReadyReplicas(), nil
+
+	return negDeployment.Status.ReadyReplicas().ApplyT(func(replicaCount *int) string {
+		if replicaCount != nil && *replicaCount > 0 {
+			return fmt.Sprintf("%d replicas ready", *replicaCount)
+		}
+		return "AutoNEG deployment in progress"
+	})
 }
 
 // Create Kubernetes Namespace
@@ -154,7 +169,9 @@ func createAutoNegService(
 				"control-plane": pulumi.String("controller-manager"),
 			},
 		},
-	}, pulumi.DependsOn([]pulumi.Resource{ns}))
+	},
+		pulumi.Provider(k8sProvider),
+		pulumi.DependsOn([]pulumi.Resource{ns}))
 	return err
 }
 
@@ -208,6 +225,8 @@ func createAutoNegDeployment(
 				},
 			},
 		},
-	}, pulumi.DependsOn([]pulumi.Resource{autoNegServiceAccount}))
+	},
+		pulumi.Provider(k8sProvider),
+		pulumi.DependsOn([]pulumi.Resource{autoNegServiceAccount}))
 	return negDeployment, err
 }

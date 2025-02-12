@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"mlops/argocd"
 	"mlops/autoneg"
 	"mlops/gke"
 	"mlops/global"
@@ -27,7 +26,7 @@ func main() {
 			registry.CreateArtifactRegistry(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
 		}
 
-		err := CreateProjectResources(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+		err := CreateProjectResources(ctx, projectConfig)
 		if err != nil {
 			return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
 		}
@@ -35,9 +34,9 @@ func main() {
 	})
 }
 
-func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig, opts ...pulumi.ResourceOption) error {
+func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig) error {
 	// -------------------------- VPC -----------------------------
-	gcpNetwork, _, err := vpc.CreateVPCResources(ctx, projectConfig, opts...)
+	gcpNetwork, err := vpc.CreateVPCResources(ctx, projectConfig)
 	if err != nil {
 		return nil
 	}
@@ -55,25 +54,26 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 		}
 
 		if config.GetBool(ctx, "vpc.autoNEG") {
-			negReady, err := autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
+			negServiceAccount, err := autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
 			if err != nil {
 				return err
 			}
 			// --------------------------- ArgoCD ----------------------------
-			negReady.ApplyT(func(_ interface{}) error {
-				if config.GetBool(ctx, "argocd:create") {
-					err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
+			negServiceAccount.ID().ApplyT(func(_ string) error {
+				if config.GetBool(ctx, "vpc:loadBalancer") {
+					_, err = vpc.CreateBackendServiceResources(ctx, projectConfig)
 					if err != nil {
 						return err
 					}
 				}
 				return nil
 			})
-		}
-		if config.GetBool(ctx, "argocd:create") {
-			err = argocd.DeployArgoCD(ctx, projectConfig, k8sProvider)
-			if err != nil {
-				return err
+		} else {
+			if config.GetBool(ctx, "vpc:loadBalancer") {
+				_, err = vpc.CreateBackendServiceResources(ctx, projectConfig)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

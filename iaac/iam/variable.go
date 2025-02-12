@@ -36,39 +36,14 @@ var SVC = map[string]svc{
 		Description:        "Custom IAM Role - GKE Admin",
 		Title:              "GKEAdmin",
 		IAMRoleId:          "gke_admin",
-		Permissions: pulumi.StringArray{
-			// Kubernetes Engine Permissions
-			pulumi.String("container.clusters.create"),
-			pulumi.String("container.clusters.update"),
-			pulumi.String("container.clusters.get"),
-			pulumi.String("container.clusters.delete"),
-			pulumi.String("container.nodes.create"),
-			pulumi.String("container.nodes.list"),
-			pulumi.String("container.nodes.update"),
-			pulumi.String("container.nodes.get"),
-			pulumi.String("container.services.get"),
-			pulumi.String("container.services.list"),
-			// Networking & Compute Permissions
-			pulumi.String("compute.instances.create"),
-			pulumi.String("compute.instances.delete"),
-			pulumi.String("compute.instances.setMetadata"),
-			pulumi.String("compute.instanceGroups.update"),
-			pulumi.String("compute.networks.use"),
-			pulumi.String("compute.subnetworks.use"),
-			pulumi.String("compute.disks.create"),
-			pulumi.String("compute.disks.setLabels"),
-			// Storage
-			pulumi.String("storage.buckets.create"),
-			pulumi.String("storage.buckets.delete"),
-			// IAM
-			pulumi.String("iam.serviceAccounts.actAs"),
-			// Monitoring
-			pulumi.String("monitoring.timeSeries.list"),
-			pulumi.String("monitoring.metricDescriptors.list"),
-			pulumi.String("logging.logEntries.list"),
-			pulumi.String("logging.logMetrics.get"),
-			pulumi.String("logging.logServices.list"),
+		Roles: []string{
+			"roles/logging.logWriter",
+			"roles/monitoring.metricWriter",
+			"roles/meshtelemetry.reporter",
+			"roles/cloudtrace.agent",
+			"roles/monitoring.viewer",
+			"roles/storage.objectViewer",
 		},
-		createRole: true,
+		createMember: true,
 	},
 }

@@ -6,7 +6,6 @@ import (
 	"mlops/iam"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
-	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -24,25 +23,11 @@ func CreateGKEResources(
 
 	config := Configuration(ctx)
 
-	var (
-		serviceAccountMember pulumi.StringArrayOutput
-		serviceAccount       *serviceaccount.Account
-		err                  error
-	)
-
-	if projectConfig.Target == "management" {
-		serviceAccount, serviceAccountMember, err = gkeConfigConnectorIAM(ctx, projectConfig)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		serviceAccount, _, err = iam.CreateServiceAccount(ctx, projectConfig, "Admin")
-		if err != nil {
-			return nil, nil, err
-		}
+	serviceAccount, _, err := iam.CreateServiceAccount(ctx, projectConfig, "Admin")
+	if err != nil {
+		return nil, nil, err
 	}
-
-	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork) // [TO RESOLVE] The service account is not properly assigned to the cluster
+	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE: %w", err)
 	}
@@ -50,20 +35,6 @@ func CreateGKEResources(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}
-	if projectConfig.Target == "management" {
-		namespaceName := "config-connector"
 
-		gcpGKENodePool.ID().ApplyT(func(_ string) error {
-			err := createNamespace(ctx, projectConfig, namespaceName, k8sProvider)
-			if err != nil {
-				return fmt.Errorf("failed to create Config Connector namespace: %w", err)
-			}
-			err = applyResource(ctx, projectConfig, serviceAccountMember, k8sProvider)
-			if err != nil {
-				return fmt.Errorf("failed to apply Config Connector configuration: %w", err)
-			}
-			return nil
-		})
-	}
 	return k8sProvider, gcpGKENodePool, err
 }

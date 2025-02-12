@@ -27,8 +27,12 @@ var (
 			ResourceLabels: pulumi.StringMap{},
 		},
 		"development": {
-			MinMasterVersion:       pulumi.String(GKEDefaultVersion),
-			OauthScopes:            pulumi.StringArray{},
+			MinMasterVersion: pulumi.String(GKEDefaultVersion),
+			OauthScopes: pulumi.StringArray{
+				pulumi.String("https://www.googleapis.com/auth/devstorage.read_only"),
+				pulumi.String("https://www.googleapis.com/auth/logging.write"),
+				pulumi.String("https://www.googleapis.com/auth/monitoring"),
+			},
 			WorkloadMetadataConfig: &container.NodePoolNodeConfigWorkloadMetadataConfigArgs{},
 			Metadata:               pulumi.StringMap{},
 		},

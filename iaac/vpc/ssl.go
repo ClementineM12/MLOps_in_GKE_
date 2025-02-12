@@ -47,10 +47,9 @@ func configureSSLCertificate(
 	projectConfig global.ProjectConfig,
 	gcpBackendService *compute.BackendService,
 	gcpGlobalAddress *compute.GlobalAddress,
-	opts ...pulumi.ResourceOption,
 ) error {
 
-	gcpGLBManagedSSLCert, err := createManagedSSLCertificate(ctx, projectConfig, opts...)
+	gcpGLBManagedSSLCert, err := createManagedSSLCertificate(ctx, projectConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create Managed SSL Certificate: %w", err)
 	}
@@ -75,7 +74,6 @@ func configureSSLCertificate(
 func createManagedSSLCertificate(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	opts ...pulumi.ResourceOption,
 ) (*compute.ManagedSslCertificate, error) {
 
 	resourceName := fmt.Sprintf("%s-glb-ssl-cert", projectConfig.ResourceNamePrefix)
@@ -89,7 +87,7 @@ func createManagedSSLCertificate(
 				pulumi.String(projectConfig.Domain), // Uses the Domain provided
 			},
 		},
-	}, opts...)
+	})
 	return gcpGLBManagedSSLCert, err
 }
 
