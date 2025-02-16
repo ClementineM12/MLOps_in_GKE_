@@ -1,0 +1,48 @@
+{{- define "app.kubeflow.yaml" -}}
+
+# Kustomization for Kubeflow component
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: {{ kebabcase .component }}
+{{ with .config }}
+  namespace: kubeflow
+spec:
+  interval: {{ .interval | default "10m" }}
+  sourceRef:
+    kind: GitRepository
+    name: kubeflow
+  path: {{ .path }}
+  prune: true
+  timeout: 1m
+  wait: {{ .wait | default true }}
+  healthChecks: {{ dig "healthChecks" list . | toYaml | nindent 6 }}
+  {{- if (dig "patches" false . ) }}
+  patches: 
+    {{- range .patches }}
+    - patch: {{ .patch }}
+      target:
+        kind: {{ .kind }}
+        name: {{.name }}
+        namespace: {{ .namespace }}
+      {{- end }}
+    {{- end }}
+  {{- if (dig "dependsOn" false . ) }}
+  dependsOn:
+    {{- range .dependsOn }}
+    - name: {{ kebabcase . }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{- $kubeflowComponents := merge .Values.common .Values.oauth .Values.apps .Values.contrib .Values.certManager .Values.istio -}}
+{{- $input := dict -}}
+
+{{- range $component, $config := $kubeflowComponents -}}
+{{- if $config.enabled }}
+    {{- $input = dict "component" $component "config" $config -}}
+    {{- include "app.kubeflow.yaml" $input | fromYaml | toYaml }}
+{{- end }}
+---
+{{ end -}}

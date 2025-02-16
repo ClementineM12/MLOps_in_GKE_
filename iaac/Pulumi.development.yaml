@@ -23,7 +23,7 @@ config:
   gke:managementAutoRepair: true
   gke:managementAutoUpgrade: true
 
-  gke:loggingService: ogging.googleapis.com/kubernetes
+  gke:loggingService: logging.googleapis.com/kubernetes
   gke:monitoringService: monitoring.googleapis.com/kubernetes
   
   storage:create: true

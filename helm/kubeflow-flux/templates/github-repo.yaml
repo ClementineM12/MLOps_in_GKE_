@@ -1,0 +1,25 @@
+{{- $targetRevision := .Values.global.targetRevision }}
+{{- $repoURL := .Values.global.repoURL }}
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeflow
+  labels:
+    control-plane: kubeflow
+    istio-injection: enabled
+    katib.kubeflow.org/metrics-collector-injection: enabled
+
+--- 
+
+# GitRepository for Kubeflow Manifests
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: kubeflow
+  namespace: kubeflow
+spec:
+  interval: 5m
+  url: {{ $repoURL }}
+  ref:
+    tag: {{ $targetRevision }}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 
 	"mlops/autoneg"
 	"mlops/gke"
@@ -10,6 +11,9 @@ import (
 	"mlops/storage"
 	"mlops/vpc"
 
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
+	metaV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -76,6 +80,71 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 				}
 			}
 		}
+		err = deployFlux(ctx)
+		if err != nil {
+			return err
+		}
+
 	}
+	return nil
+}
+
+func bootstrapFluxToGitHub(ctx *pulumi.Context, githubRepo string) error {
+	// Run flux bootstrap command
+	cmd := exec.Command("flux", "bootstrap", "github",
+		fmt.Sprintf("--owner=%s", githubRepo),
+		"--repository=kubeflow-flux-deploy",
+		"--branch=main",
+		"--path=./flux-system",
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to bootstrap Flux: %v\n%s", err, string(output))
+	}
+	ctx.Log.Info("Flux successfully bootstrapped to GitHub", nil)
+	return nil
+}
+
+func deployFlux(ctx *pulumi.Context) error {
+	githubRepo := config.Get(ctx, "ar:githubRepo")
+
+	fluxNamespace, err := v1.NewNamespace(ctx, "flux-system", &v1.NamespaceArgs{
+		Metadata: &metaV1.ObjectMetaArgs{
+			Name: pulumi.String("flux-system"),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Deploy FluxCD using Helm
+	fluxHelmRelease, err := helm.NewRelease(ctx, "flux", &helm.ReleaseArgs{
+		Chart:     pulumi.String("flux2"),
+		Version:   pulumi.String("2.10.0"), // Update to the latest version
+		Namespace: fluxNamespace.Metadata.Name().Elem(),
+		RepositoryOpts: &helm.RepositoryOptsArgs{
+			Repo: pulumi.String("https://fluxcd-community.github.io/helm-charts"),
+		},
+		Values: pulumi.Map{
+			"gitRepository": pulumi.Map{
+				"url": pulumi.String(fmt.Sprintf("https://github.com/%s", githubRepo)),
+				"ref": pulumi.Map{
+					"branch": pulumi.String("main"),
+				},
+			},
+		},
+	}, pulumi.DependsOn([]pulumi.Resource{fluxNamespace}))
+	if err != nil {
+		return err
+	}
+	// Output Flux Helm Release status
+	ctx.Export("fluxNamespace", fluxNamespace.Metadata.Name())
+	ctx.Export("fluxHelmRelease", fluxHelmRelease.Status)
+
+	// err = bootstrapFluxToGitHub(ctx, githubRepo)
+	// if err != nil {
+	// 	return err
+	// }
+
 	return nil
 }

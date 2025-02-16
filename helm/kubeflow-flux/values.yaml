@@ -2,50 +2,38 @@
 # This file contains configuration options for all components.
 
 global:
-  # The ArgoCD project under which applications will be managed
-  project: default
-  # The namespace in which to install Kubeflow
-  namespace: argocd
-  # The Kubeflow version to install
-  release: argocd
-  # The target revision of the Kubeflow manifests
-  envs: 
-    istioKubeflowVersion: "1.22.1" # This is not used
-    targetRevision: "v1.9.1"
-    repoURL: "https://github.com/kubeflow/manifests"
+  # The target tag of the Kubeflow manifests
+  targetRevision: "v1.9.1"
+  # The target repository
+  repoURL: "https://github.com/kubeflow/manifests"
 
 # -- Cert Manager 
 # Cert Manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various sources.
 certManager:
   certManager:
     enabled: true
-    wave: 1
-    source:
-      path: common/cert-manager/cert-manager/base
+    path: common/cert-manager/cert-manager/base
   certManagerIssuer:
     enabled: true
-    wave: 2
-    source:
-      path: common/cert-manager/kubeflow-issuer/base
+    path: common/cert-manager/kubeflow-issuer/base
+    dependsOn:
+      - certManager
 
 # -- Istio
 istio:
+  istioNamespace:
+    enabled: true
+    path: common/istio-1-22/istio-namespace/base
   istioCrds:
     enabled: true
-    wave: 1
-    namespace: 
-      create: true
-      labels:
-        istio-operator-managed: Reconcile
-        istio-injection: enabled
-    source:
-      path: common/istio-1-22/istio-crds/base
-  oauthProxyConfiguration:
+    path: common/istio-1-22/istio-crds/base
+  istio:
     enabled: true
-    wave: 2
-    source:
-      path: common/istio-1-22/istio-install/overlays/oauth2-proxy
-
+    path: common/istio-1-22/istio-install/overlays/oauth2-proxy
+    dependsOn:
+      - istioNamespace
+      - istioCrds
+      - certManager
 
 # -- Authentication
 oauth: 
@@ -53,14 +41,14 @@ oauth:
   # DEX is an OpenID Connect provider that Kubeflow uses for authentication.
   dex:
     enabled: true
-    wave: 4
-    source:
-      path: common/dex/overlays/istio
+    path: common/dex/overlays/istio
+    dependsOn:
+      - istio
   oauthProxy:
     enabled: true
-    wave: 3
-    source: 
-      path: common/oauth2-proxy/overlays/m2m-dex-only/
+    path: common/oauth2-proxy/overlays/m2m-dex-only
+    dependsOn:
+      - dex
 
 # -- Common
 # Common components are used by all Kubeflow components.
@@ -69,56 +57,50 @@ common:
   # Knative is used by the KServe official Kubeflow component. It is a Kubernetes-based platform to build, deploy, and manage modern serverless workloads.
   knativeServing:
     enabled: true
-    wave: 5
-    source:
-      path: common/knative/knative-serving/overlays/gateways
+    path: common/knative/knative-serving/overlays/gateways
+    dependsOn:
+      - istio 
   clusterLocalGateway:
     enabled: true
-    wave: 6
-    source:
-      path: common/istio-1-22/cluster-local-gateway/base
+    path: common/istio-1-22/cluster-local-gateway/base
+    dependsOn:
+      - istio 
   knativeEventing:
     enabled: false
-    wave: 7
-    source:
-      path: common/knative/knative-eventing/base
+    path: common/knative/knative-eventing/base
+    dependsOn:
+      - knativeServing
   # -- Network Policies 
   # Network Policies are used to control the traffic flow between different components in the Kubeflow deployment.
   networkPolicies:
     enabled: true
-    wave: 7
-    source:
-      path: common/networkpolicies/base
+    path: common/networkpolicies/base
+    dependsOn:
+      - knativeServing
   # -- Roles
   # It contains the default ClusterRoles Kubeflow uses for defining roles for Kubeflow user Profiles. 
   # These roles are currently assigned to users by Profiles (profile-controller and kfam) Service with 
   # the help of Manage Users page in Central Dashboard.
   kubeflowRoles:
     enabled: true
-    namespace: 
-      create: true
-      labels:
-        control-plane: kubeflow
-        # istio-injection: enabled
-        katib.kubeflow.org/metrics-collector-injection: enabled
-    wave: 9
-    source:
-      path: common/kubeflow-roles/base
+    path: common/kubeflow-roles/base
+    dependsOn:
+      - networkPolicies
   # -- Istio Kubeflow Resources
   # It contains the Istio resources for Kubeflow components.
   istioResources:
     enabled: true
-    wave: 11
-    source:
-      path: common/istio-1-22/kubeflow-istio-resources/base
-    # destination -> argocd [MAYBE]
+    path: common/istio-1-22/kubeflow-istio-resources/base
+    dependsOn:
+      - istio 
+      - kubeflowRoles
   # -- User Namespaces  
   # User Namespaces are used to create a namespace for each user in the Kubeflow deployment.
   exampleProfile:
-    enabled: true
-    wave: 40
-    source:
-      path: common/user-namespace/base
+    enabled: false
+    path: common/user-namespace/base
+    dependsOn:
+      - kubeflowRoles
 
 # -- Apps 
 # Apps are the main Kubeflow components that provide machine learning capabilities.
@@ -127,88 +109,89 @@ apps:
   # Kubeflow Pipelines is a platform for building and deploying portable, scalable machine learning (ML) workflows based on Docker containers.
   pipelines:
     enabled: true
-    wave: 14
-    source:
-      path: apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user
+    path: apps/pipeline/upstream/env/cert-manager/platform-agnostic-multi-user
+    dependsOn:
+      - istioResources
   # -- Katib
   # Katib is a scalable and flexible hyperparameter tuning framework for Kubernetes.
   katib:
     enabled: true
-    wave: 17
-    source:
-      path: apps/katib/upstream/installs/katib-with-kubeflow
+    path: apps/katib/upstream/installs/katib-with-kubeflow
+    dependsOn:
+      - pipelines
   # -- Dashboard
   # The Central Dashboard is a web-based user interface for managing Kubeflow deployments.
   centralDashboard:
     enabled: true
-    wave: 20
-    source:
-      path: apps/centraldashboard/overlays/oauth2-proxy
+    path: apps/centraldashboard/overlays/oauth2-proxy
+    dependsOn:
+      - pipelines 
+      - katib 
   # -- Admission Webhook
   # The Admission Webhook is a Kubernetes admission controller that validates and mutates resources in the Kubeflow deployment.
   admissionWebhook:
     enabled: true
-    wave: 22
-    source:
-      path: apps/admission-webhook/upstream/overlays/cert-manager
+    path: apps/admission-webhook/upstream/overlays/cert-manager
+    dependsOn:
+      - centralDashboard
   # -- Notebooks 1.0
   # -- Notebook Controller
   # The Notebook Controller is a Kubernetes controller that manages Jupyter notebooks.
   notebookController:
     enabled: true
-    wave: 24
-    source:
-      path: apps/jupyter/notebook-controller/upstream/overlays/kubeflow
+    path: apps/jupyter/notebook-controller/upstream/overlays/kubeflow
+    dependsOn:
+      - admissionWebhook
   # -- Jupyter Web App
   # The Jupyter Web App is a web-based user interface for managing Jupyter notebooks.
   jupyterWebApp:
     enabled: true
-    wave: 26
-    source:
-      path: apps/jupyter/jupyter-web-app/upstream/overlays/istio
+    path: apps/jupyter/jupyter-web-app/upstream/overlays/istio
+    dependsOn:
+      - notebookController
   # PVC Viewer Controller
   # The PVC Viewer Controller is a Kubernetes controller that manages Persistent Volume Claims (PVCs).
   pvcViewerController:
     enabled: true
-    wave: 28
-    source:
-      path: apps/pvcviewer-controller/upstream/default
+    path: apps/pvcviewer-controller/upstream/default
+    dependsOn:
+      - jupyterWebApp
   # -- Profiles & KFAM
   # Profiles is a Kubeflow component that manages user profiles and roles.
   profiles:
     enabled: true
-    wave: 30
-    source:
-      path: apps/profiles/upstream/overlays/kubeflow
+    path: apps/profiles/upstream/overlays/kubeflow
+    dependsOn:
+      - pvcViewerController
   # -- Volumes Web App
   volumesWebApp:
     enabled: true
-    wave: 32
-    source:
-      path: apps/volumes-web-app/upstream/overlays/istio
+    path: apps/volumes-web-app/upstream/overlays/istio
+    dependsOn:
+      - profiles
   # -- Tensorboard
   # The Tensorboard component is a web-based user interface for visualizing machine learning models.
   # -- Web App
   # The Tensorboards Web App is a web-based user interface for managing TensorBoard instances.
   tensorboardsWebApp:
     enabled: true
-    wave: 34
-    source:
-      path: apps/tensorboard/tensorboards-web-app/upstream/overlays/istio
+    path: apps/tensorboard/tensorboards-web-app/upstream/overlays/istio
+    dependsOn:
+      - volumesWebApp
   # -- Controller
   # The Tensorboard Controller is a Kubernetes controller that manages TensorBoard instances.
   tensorboardController:
     enabled: true
-    wave: 36
-    source:
-      path: apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow
+    path: apps/tensorboard/tensorboard-controller/upstream/overlays/kubeflow
+    dependsOn:
+      - tensorboardsWebApp
   # -- Training Operator
   # The Training Operator is a Kubernetes operator that manages machine learning training jobs.
   trainingOperator:
     enabled: true
-    wave: 38
-    source: 
-      path: apps/training-operator/upstream/overlays/kubeflow
+    path: apps/training-operator/upstream/overlays/kubeflow
+    dependsOn:
+      - volumesWebApp
 
 # -- Contributed Applications
 # Contributed applications are additional Kubeflow components that provide machine learning capabilities.
@@ -217,42 +200,37 @@ contrib:
   # KServe is a Kubernetes-based serverless inference framework. It is used to deploy and serve machine learning models.
   kserve:
     enabled: true
-    wave: 16
-    source:
-      path: contrib/kserve/kserve
+    path: contrib/kserve/kserve
+    dependsOn:
+      - pipelines 
   # -- Models Web App
   # The Models Web App is a web-based user interface for managing machine learning models.
   modelsWebApp:
     enabled: true
-    wave: 18
-    source:
-      path: contrib/kserve/models-web-app/overlays/kubeflow
+    path: contrib/kserve/models-web-app/overlays/kubeflow
+    dependsOn:
+      - kserve
 
 extras: 
   # -- Kuberay
   # Kuberay is a Kubernetes-based platform to build, deploy, and manage modern serverless workloads.
   kuberay:
     enabled: false
-    wave: 50
     namespace: 
-      create: true # [MAYBE]
-    source:
-      chart: 'kuberay-operator'
-      repoURL: 'https://ray-project.github.io/kuberay-helm/'
-      targetRevision: "1.1.0"
-      helm:
-        releaseName: "kuberay"
+      create: true # check this [MAYBE]
+    chart: 'kuberay-operator'
+    repoURL: 'https://ray-project.github.io/kuberay-helm/'
+    targetRevision: "1.1.0"
+    helm:
+      releaseName: "kuberay"
   # -- Spark Operator
   # The Spark Operator is a Kubernetes operator that manages Apache Spark applications.
   sparkOperator:
     enabled: false
-    wave: 50
     namespace: 
       create: true # check this [MAYBE]
-    source:
-      chart: 'spark-operator'
-      repoURL: 'https://kubeflow.github.io/spark-operator'
-      targetRevision: "1.1.27"
-      helm:
-        releaseName: "spark-operator"
-        
+    chart: 'spark-operator'
+    repoURL: 'https://kubeflow.github.io/spark-operator'
+    targetRevision: "1.1.27"
+    helm:
+      releaseName: "spark-operator"  
