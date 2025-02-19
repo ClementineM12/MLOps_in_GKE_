@@ -32,12 +32,6 @@ gcloud projects add-iam-policy-binding PROJECT \
 
 Resolved: https://github.com/pulumi/pulumi/discussions/15902
 
-# Argo cd proper removal of CRDs
-```sh
-kubectl delete application --all -n argocd 
-kubectl delete namespace argocd --wait
-kubectl delete crd $(kubectl get crds | grep argoproj.io | awk '{print $1}')
-```
 
 ## Istio
 

@@ -19,7 +19,7 @@ The infrastructure includes:
 - **Istio Service Mesh**
 - **VPC Networks**
 - **IAM Roles**
-- **ArgoCD for GitOps**
+- **FluxCD for GitOps**
 - **Kubeflow for ML Pipelines**
 
 ---
@@ -40,35 +40,14 @@ Once, everything is up and running, connect to the cluster:
 gcloud container clusters get-credentials CLUSTER_NAME --region REGION --project PROJECT_ID
 ```
 
-## 🎯 Deploy and Access ArgoCD
-
-Get `helm-chart` and deploy:
-```sh
-helm repo add argo https://argoproj.github.io/argo-helm && helm repo update
-helm install argocd argo/argo-cd --namespace argocd --create-namespace --values helm/argocd/values.yaml 
-```
-
-Retrieve ArgoCD Admin Credentials:
-
-```sh
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-```
-* **Username**: `admin`
-
-Default Port Forwarding:
-```sh
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-```
-Now, access ArgoCD UI at https://localhost:8080.
-
 ## ⚙️ Deploy Kubeflow with Helm
 
 ```sh
 # Navigate to the Helm chart directory
-cd helm/kubeflow
+cd helm/kubeflow-flux
 
-# Uninstall existing Kubeflow release (if any)
-helm uninstall kubeflow --namespace argocd
+# Install Kubeflow
+helm install kubeflow --namespace flux-system
 ```
 
 ## 🌐 Access the Kubeflow Central Dashboard
@@ -96,22 +75,4 @@ Install Kubeflow Pipelines SDK (v2.11.0)
 pip install kfp
 ```
 Now, you can create and run Kubeflow Pipelines!
-
-## 🎉 You're All Set!
-
-Now that your MLOps infrastructure is up and running, you can begin managing ML workloads using Kubeflow and ArgoCD.
-
-For further improvements, consider:
-
-* ✅ Automating deployment with CI/CD
-* ✅ Securing Kubeflow & ArgoCD
-* ✅ Optimizing GCP resources for cost efficiency
-* 🚀 Happy MLOps!
-
-### **📌 Key Enhancements:**
-
-* ✅ **Markdown-friendly** formatting for `README.md`  
-* ✅ **Proper code blocks (`sh`)** for commands  
-* ✅ **Emojis for better readability** (optional but engaging)  
-* ✅ **Section breaks (`---`)** for better structure  
 

@@ -39,6 +39,13 @@ func createCloudSQL(
 			},
 		},
 	}, pulumi.DependsOn([]pulumi.Resource{serviceNetworkConnection}))
+	if err != nil {
+		return struct {
+			InstanceName pulumi.StringOutput
+			Connection   pulumi.StringOutput
+			Password     pulumi.StringOutput
+		}{}, err
+	}
 
 	// Create the database
 	resourceName = fmt.Sprintf("%s-db", projectConfig.ResourceNamePrefix)

@@ -47,7 +47,14 @@ func createServiceAccounts(
 		AccountId pulumi.StringOutput
 		Member    pulumi.StringArrayOutput
 	})
-	roles := []string{"flyteadmin", "flytepropeller", "flytescheduler", "datacatalog", "flyteworkers", "artifactregistry-writer"}
+	roles := []string{
+		"flyteadmin",
+		"flytepropeller",
+		"flytescheduler",
+		"datacatalog",
+		"flyteworkers",
+		"artifactregistry-writer",
+	}
 
 	for _, role := range roles {
 		resourceName := fmt.Sprintf("%s-%s-iam-svc", projectConfig.ResourceNamePrefix, role)
@@ -86,30 +93,44 @@ func createIAMBindings(
 	roles := map[string][]string{
 		"flyteadmin": {
 			"iam.serviceAccounts.signBlob",
-			"storage.buckets.get", "storage.objects.create",
-			"storage.objects.delete", "storage.objects.get",
-			"storage.objects.getIamPolicy", "storage.objects.update",
+			"storage.buckets.get",
+			"storage.objects.create",
+			"storage.objects.delete",
+			"storage.objects.get",
+			"storage.objects.getIamPolicy",
+			"storage.objects.update",
 		},
 		"flytepropeller": {
-			"storage.buckets.get", "storage.objects.create",
-			"storage.objects.delete", "storage.objects.get",
-			"storage.objects.list", "storage.objects.getIamPolicy",
+			"storage.buckets.get",
+			"storage.objects.create",
+			"storage.objects.delete",
+			"storage.objects.get",
+			"storage.objects.list",
+			"storage.objects.getIamPolicy",
 			"storage.objects.update",
 		},
 		"flytescheduler": {
-			"storage.buckets.get", "storage.objects.create",
-			"storage.objects.delete", "storage.objects.get",
-			"storage.objects.getIamPolicy", "storage.objects.update",
+			"storage.buckets.get",
+			"storage.objects.create",
+			"storage.objects.delete",
+			"storage.objects.get",
+			"storage.objects.getIamPolicy",
+			"storage.objects.update",
 		},
 		"datacatalog": {
-			"storage.buckets.get", "storage.objects.create",
-			"storage.objects.delete", "storage.objects.get",
+			"storage.buckets.get",
+			"storage.objects.create",
+			"storage.objects.delete",
+			"storage.objects.get",
 			"storage.objects.update",
 		},
 		"flyteworkers": {
-			"storage.buckets.get", "storage.objects.create",
-			"storage.objects.delete", "storage.objects.get",
-			"storage.objects.list", "storage.objects.update",
+			"storage.buckets.get",
+			"storage.objects.create",
+			"storage.objects.delete",
+			"storage.objects.get",
+			"storage.objects.list",
+			"storage.objects.update",
 		},
 	}
 
