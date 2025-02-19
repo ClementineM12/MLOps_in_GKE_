@@ -1,74 +1,120 @@
-package database
+package flyte
 
 import (
 	"fmt"
+	"io/ioutil"
 	"mlops/global"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/sql"
-	"github.com/pulumi/pulumi-random/sdk/v4/go/random"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"gopkg.in/yaml.v2"
 )
 
-// var flyte_ksas = ["default"] // The KSA that Task Pods will use
-//  As recommended by Google, we make use of Workload Identity as a mechanism to enable KSAs
-//   to impersonate GSAs and access GCP resources. To do so, the following process is implemented in this module:
-//  1. Create a GSA. This is the Principal that will be impersonated by the KSAs
-//  2. Create the custom roles that include the permissions for flyteadmin, the dataplane (flytepropeller) and the workers (the Task Pods)
-//  3. Grant the custom role to each GSA
-//  4. Define an IAM binding at the SA level to associate the GSA with the KSA as a Workload Identity user
+var (
+	application = "flyte"
+)
 
-func createCloudSQL(
+func CreateFlyteResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	region global.CloudRegion,
-	privateNetwork 
+	cloudRegion *global.CloudRegion,
+	k8sProvider *kubernetes.Provider,
+	gcpNetwork *compute.Network,
+	gcpSubnetwork *compute.Subnetwork,
+	gcsBucket pulumi.StringInput,
 ) error {
 
-	resourceName := fmt.Sprintf("%s-db-instance", projectConfig.ResourceNamePrefix)
-	dbInstance, err := sql.NewDatabaseInstance(ctx, resourceName, &sql.DatabaseInstanceArgs{
-		Name:               pulumi.Sprintf("DB instance"),
-		DatabaseVersion:    pulumi.String("POSTGRES_14"),
-		Project:            pulumi.String(projectConfig.ProjectId),
-		Region:             pulumi.String(region.Region),
-		DeletionProtection: pulumi.Bool(false),
-		Settings: &sql.DatabaseInstanceSettingsArgs{
-			Tier: pulumi.String("db-custom-1-3840"),
-			IpConfiguration: &sql.DatabaseInstanceSettingsIpConfigurationArgs{
-				Ipv4Enabled:                             pulumi.Bool(false),
-				EnablePrivatePathForGoogleCloudServices: pulumi.Bool(true),
-				PrivateNetwork:                          pulumi.String("your-private-network-self-link"),
-			},
-		},
-	})
+	serviceNetworking, err := createServiceNetworking(ctx, gcpNetwork)
+	if err != nil {
+		return err
+	}
+	serviceNetworkConnection, err := createServiceNetworkingConnection(ctx, gcpNetwork, serviceNetworking)
+	if err != nil {
+		return err
+	}
+	serviceAccounts, err := createFlyteIAM(ctx, projectConfig)
+	if err != nil {
+		return err
+	}
+	dependencies, err := createKubernetesResources(ctx, projectConfig, k8sProvider)
+	if err != nil {
+		return err
+	}
+	cloudSQL, err := createCloudSQL(ctx, projectConfig, cloudRegion, gcpSubnetwork, serviceNetworkConnection)
+	if err != nil {
+		return err
+	}
 
-	// Create the database
-	resourceName = fmt.Sprintf("%s-db", projectConfig.ResourceNamePrefix)
-	_, err = sql.NewDatabase(ctx, resourceName, &sql.DatabaseArgs{
-		Instance: dbInstance.Name,
-		Name:     pulumi.String("mlop"),
-	})
+	deployFlyteCore(ctx, projectConfig, k8sProvider, cloudSQL, gcsBucket, serviceAccounts, dependencies)
+	return nil
+}
+
+func deployFlyteCore(
+	ctx *pulumi.Context,
+	projectConfig global.ProjectConfig,
+	k8sProvider *kubernetes.Provider,
+	cloudSQL struct {
+		InstanceName pulumi.StringOutput
+		Connection   pulumi.StringOutput
+		Password     pulumi.StringOutput
+	},
+	gcsBucket pulumi.StringInput,
+	serviceAccounts map[string]struct {
+		AccountId pulumi.StringOutput
+		Member    pulumi.StringArrayOutput
+	},
+	dependsOn []pulumi.Resource,
+) error {
+
+	// Load the values.yaml file
+	valuesFilePath := "../../helm/flyte/values/values.yaml"
+	yamlData, err := ioutil.ReadFile(valuesFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read values.yaml: %w", err)
 	}
-	// Generate a random password for the user
-	randomPassword, err := random.NewRandomPassword(ctx, "mlopUserPassword", &random.RandomPasswordArgs{
-		Length:  pulumi.Int(16),
-		Special: pulumi.Bool(false),
-	})
+
+	// Convert YAML file to a map
+	var valuesMap map[string]interface{}
+	err = yaml.Unmarshal(yamlData, &valuesMap)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse values.yaml: %w", err)
 	}
-	// Create the user
-	_, err = sql.NewUser(ctx, "mlop-user", &sql.UserArgs{
-		Instance: dbInstance.Name,
-		Name:     pulumi.String("mlop"),
-		Password: randomPassword.Result,
-	})
+
+	// Inject dynamic values into the parsed YAML map
+	userSettings := map[string]interface{}{
+		"googleProjectId":              projectConfig.ProjectId,
+		"dbHost":                       cloudSQL.Connection,
+		"dbPassword":                   cloudSQL.Password,
+		"bucketName":                   gcsBucket,
+		"hostName":                     fmt.Sprintf("%s.%s", application, projectConfig.Domain),
+		"flyteadminServiceAccount":     serviceAccounts["flyteadmin"],
+		"flytepropellerServiceAccount": serviceAccounts["flytepropeller"],
+		"flyteschedulerServiceAccount": serviceAccounts["flytescheduler"],
+		"datacatalogServiceAccount":    serviceAccounts["datacatalog"],
+		"flyteworkersServiceAccount":   serviceAccounts["flyteworkers"],
+	}
+	valuesMap["userSettings"] = userSettings
+
+	// Deploy Helm release for Flyte-Core
+	resourceName := fmt.Sprintf("%s-flyte-core", projectConfig.ResourceNamePrefix)
+	_, err = helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
+		Name:      pulumi.String("flyte-core"),
+		Namespace: pulumi.String("flyte"),
+		RepositoryOpts: &helm.RepositoryOptsArgs{
+			Repo: pulumi.String("https://flyteorg.github.io/flyte"),
+		},
+		Chart:  pulumi.String("flyte-core"),
+		Values: pulumi.ToMap(valuesMap),
+	},
+		pulumi.DependsOn(dependsOn),
+		pulumi.Provider(k8sProvider),
+	)
+
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to deploy Flyte-Core Helm chart: %w", err)
 	}
-	// Output the database instance connection name
-	ctx.Export("dbInstanceConnectionName", dbInstance.ConnectionName)
-	ctx.Export("flyteUserPassword", randomPassword.Result)
+
 	return nil
 }

@@ -52,12 +52,12 @@ func CreateArtifactRegistry(
 			ctx.Export("githubServiceAccountEmail", githubServiceAccount.Email)
 		}
 
-		if config.GetBool(ctx, "ar:argoCDSACreate") {
-			argoCDServiveAccount, err := createArgoCDServiceAccount(ctx, projectConfig)
+		if config.GetBool(ctx, "ar:cdSACreate") {
+			cdServiveAccount, err := createRegistryServiceAccount(ctx, projectConfig)
 			if err != nil {
 				return err
 			}
-			ctx.Export("argoCDServiveAccountEmail", argoCDServiveAccount.Email)
+			ctx.Export("cdServiveAccountEmail", cdServiveAccount.Email)
 		}
 		ctx.Export("artifactRegistryURL", registry.RepositoryId)
 		return nil

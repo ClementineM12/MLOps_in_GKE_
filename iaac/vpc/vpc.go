@@ -82,6 +82,7 @@ func createVPCNetwork(
 		Project:               pulumi.String(projectConfig.ProjectId),
 		Name:                  pulumi.String(resourceName),
 		Description:           pulumi.String("Global VPC Network"),
+		RoutingMode:           pulumi.String("GLOBAL"),
 		AutoCreateSubnetworks: pulumi.Bool(false),
 	}, opts...)
 

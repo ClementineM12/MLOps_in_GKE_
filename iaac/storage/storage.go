@@ -12,7 +12,7 @@ import (
 func CreateObjectStorage(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-) {
+) pulumi.StringOutput {
 
 	var bucketLocation string
 	if len(projectConfig.EnabledRegions) > 1 {
@@ -43,4 +43,5 @@ func CreateObjectStorage(
 	}
 
 	ctx.Export("bucketName", bucket.Name)
+	return bucket.Name
 }

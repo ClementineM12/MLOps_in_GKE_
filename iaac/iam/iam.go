@@ -17,7 +17,7 @@ func createServiceAccount(
 	svc *svc,
 ) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
 
-	resourceName := fmt.Sprintf("%s-svc-%s", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
+	resourceName := fmt.Sprintf("%s-%s-iam-svc", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
 	gcpServiceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
 		Project:     pulumi.String(projectConfig.ProjectId),
 		AccountId:   pulumi.String(svc.AccountId),

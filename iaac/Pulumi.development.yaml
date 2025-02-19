@@ -29,10 +29,9 @@ config:
   storage:create: true
 
   ar:create: false 
-  ar:githubSACreate: true
+  ar:githubSACreate: false
+  ar:cdSACreate: false
   ar:githubRepo: "ClementineM12/MLOps"
-  ar:argoCDSACreate: true
 
-  argocd:create: false
-  argocd:logLevel: INFO
+  project:target: flyte
   

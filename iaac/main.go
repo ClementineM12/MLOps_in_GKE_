@@ -2,18 +2,17 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 
 	"mlops/autoneg"
+	"mlops/flux"
+	"mlops/flyte"
 	"mlops/gke"
 	"mlops/global"
 	"mlops/registry"
 	"mlops/storage"
 	"mlops/vpc"
 
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
-	metaV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -23,22 +22,22 @@ func main() {
 		projectConfig := global.GenerateProjectConfig(ctx)
 		gcpDependencies := global.EnableGCPServices(ctx, projectConfig)
 
+		var gcsBucket pulumi.StringOutput
 		if config.GetBool(ctx, "storage:create") {
-			storage.CreateObjectStorage(ctx, projectConfig)
+			gcsBucket = storage.CreateObjectStorage(ctx, projectConfig)
 		}
 		if config.GetBool(ctx, "ar:create") {
 			registry.CreateArtifactRegistry(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
 		}
 
-		err := CreateProjectResources(ctx, projectConfig)
-		if err != nil {
+		if err := CreateProjectResources(ctx, projectConfig, gcsBucket); err != nil {
 			return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
 		}
 		return nil
 	})
 }
 
-func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig) error {
+func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig, gcsBucket pulumi.StringOutput) error {
 	// -------------------------- VPC -----------------------------
 	gcpNetwork, err := vpc.CreateVPCResources(ctx, projectConfig)
 	if err != nil {
@@ -52,99 +51,45 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 			return err
 		}
 		// --------------------------- GKE ----------------------------
-		k8sProvider, _, err := gke.CreateGKEResources(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
+		k8sProvider, NodePool, err := gke.CreateGKEResources(ctx, projectConfig, &cloudRegion, gcpNetwork.ID(), gcpSubnetwork.ID())
 		if err != nil {
 			return err
 		}
 
+		var negServiceAccount *serviceaccount.Account
 		if config.GetBool(ctx, "vpc.autoNEG") {
-			negServiceAccount, err := autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
+			var err error
+			negServiceAccount, err = autoneg.EnableAutoNEGController(ctx, projectConfig, k8sProvider)
 			if err != nil {
 				return err
 			}
-			// --------------------------- ArgoCD ----------------------------
-			negServiceAccount.ID().ApplyT(func(_ string) error {
-				if config.GetBool(ctx, "vpc:loadBalancer") {
-					_, err = vpc.CreateBackendServiceResources(ctx, projectConfig)
-					if err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-		} else {
-			if config.GetBool(ctx, "vpc:loadBalancer") {
-				_, err = vpc.CreateBackendServiceResources(ctx, projectConfig)
+		}
+		if config.GetBool(ctx, "vpc:loadBalancer") {
+			// If AutoNEG is enabled, defer Load Balancer creation until it's ready
+			if negServiceAccount != nil {
+				negServiceAccount.ID().ApplyT(func(_ string) error {
+					_, err := vpc.CreateBackendServiceResources(ctx, projectConfig)
+					return err
+				})
+			} else {
+				// If AutoNEG is not enabled, create Load Balancer immediately
+				_, err := vpc.CreateBackendServiceResources(ctx, projectConfig)
 				if err != nil {
 					return err
 				}
 			}
 		}
-		err = deployFlux(ctx)
-		if err != nil {
-			return err
+
+		if config.Get(ctx, "project:target") == "kubeflow" {
+			if err = flux.DeployFlux(ctx, k8sProvider, NodePool); err != nil {
+				return err
+			}
 		}
-
+		if config.Get(ctx, "project:target") == "flyte" {
+			if err = flyte.CreateFlyteResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork, gcpSubnetwork, gcsBucket); err != nil {
+				return err
+			}
+		}
 	}
-	return nil
-}
-
-func bootstrapFluxToGitHub(ctx *pulumi.Context, githubRepo string) error {
-	// Run flux bootstrap command
-	cmd := exec.Command("flux", "bootstrap", "github",
-		fmt.Sprintf("--owner=%s", githubRepo),
-		"--repository=kubeflow-flux-deploy",
-		"--branch=main",
-		"--path=./flux-system",
-	)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to bootstrap Flux: %v\n%s", err, string(output))
-	}
-	ctx.Log.Info("Flux successfully bootstrapped to GitHub", nil)
-	return nil
-}
-
-func deployFlux(ctx *pulumi.Context) error {
-	githubRepo := config.Get(ctx, "ar:githubRepo")
-
-	fluxNamespace, err := v1.NewNamespace(ctx, "flux-system", &v1.NamespaceArgs{
-		Metadata: &metaV1.ObjectMetaArgs{
-			Name: pulumi.String("flux-system"),
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Deploy FluxCD using Helm
-	fluxHelmRelease, err := helm.NewRelease(ctx, "flux", &helm.ReleaseArgs{
-		Chart:     pulumi.String("flux2"),
-		Version:   pulumi.String("2.10.0"), // Update to the latest version
-		Namespace: fluxNamespace.Metadata.Name().Elem(),
-		RepositoryOpts: &helm.RepositoryOptsArgs{
-			Repo: pulumi.String("https://fluxcd-community.github.io/helm-charts"),
-		},
-		Values: pulumi.Map{
-			"gitRepository": pulumi.Map{
-				"url": pulumi.String(fmt.Sprintf("https://github.com/%s", githubRepo)),
-				"ref": pulumi.Map{
-					"branch": pulumi.String("main"),
-				},
-			},
-		},
-	}, pulumi.DependsOn([]pulumi.Resource{fluxNamespace}))
-	if err != nil {
-		return err
-	}
-	// Output Flux Helm Release status
-	ctx.Export("fluxNamespace", fluxNamespace.Metadata.Name())
-	ctx.Export("fluxHelmRelease", fluxHelmRelease.Status)
-
-	// err = bootstrapFluxToGitHub(ctx, githubRepo)
-	// if err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
