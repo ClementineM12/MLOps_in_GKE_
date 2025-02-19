@@ -26,11 +26,11 @@ func CreateFlyteResources(
 	gcsBucket pulumi.StringInput,
 ) error {
 
-	serviceNetworking, err := createServiceNetworking(ctx, gcpNetwork)
+	serviceNetworking, err := createServiceNetworking(ctx, projectConfig, gcpNetwork)
 	if err != nil {
 		return err
 	}
-	serviceNetworkConnection, err := createServiceNetworkingConnection(ctx, gcpNetwork, serviceNetworking)
+	serviceNetworkConnection, err := createServiceNetworkingConnection(ctx, projectConfig, gcpNetwork, serviceNetworking)
 	if err != nil {
 		return err
 	}
