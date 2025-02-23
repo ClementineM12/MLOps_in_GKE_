@@ -8,7 +8,7 @@ config:
   project:domain: <provide_your_domain>
   project:email: <provide_your_email>
   project:whitelistedIPs: "<provide_your_IP>/32"
-  
+ 
   vpc:regions: "009"
   vpc:loadBalancer: false
   vpc.autoNEG: false
