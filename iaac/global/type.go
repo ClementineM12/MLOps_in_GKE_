@@ -23,6 +23,9 @@ type ProjectConfig struct {
 	SSL                bool
 	EnabledRegions     []CloudRegion
 	Target             string
+	CloudSQL           *CloudSQLConfig
+	Email              string
+	WhitelistedIPs     string
 }
 
 type CloudRegion struct {
@@ -33,4 +36,14 @@ type CloudRegion struct {
 	GKECluster          *container.Cluster
 	GKEClusterName      string
 	MasterIpv4CidrBlock string
+}
+
+type CloudSQLConfig struct {
+	Create             bool   `json:"create"`
+	User               string `json:"user"`
+	Database           string `json:"database"`
+	InstancePrefixName string
+	InstanceName       pulumi.StringOutput
+	Connection         pulumi.StringOutput
+	Password           pulumi.StringOutput
 }

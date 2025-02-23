@@ -1,18 +1,27 @@
 package iam
 
 import (
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-type svc struct {
-	resourceNameSuffix string
-	AccountId          string
-	DisplayName        string
-	Description        string
-	Title              string
-	IAMRoleId          string
-	Permissions        pulumi.StringArray
-	createRole         bool
-	Roles              []string
-	createMember       bool
+type IAM struct {
+	ResourceNamePrefix      string
+	DisplayName             string
+	Title                   string
+	Description             string
+	IAMRoleId               string
+	Permissions             pulumi.StringArray
+	CreateRole              bool
+	CreateMember            bool
+	CreateServiceAccount    bool
+	RoleBinding             string
+	Roles                   []string
+	WorkloadIdentityBinding []string
+}
+
+type ServiceAccountInfo struct {
+	ServiceAccount *serviceaccount.Account
+	Member         pulumi.StringArrayOutput
+	Email          pulumi.StringOutput
 }

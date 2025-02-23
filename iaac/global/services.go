@@ -15,7 +15,7 @@ func EnableGCPServices(
 
 	var gcpDependencies []pulumi.Resource
 
-	for _, service := range gcpServices[projectConfig.Target] {
+	for _, service := range gcpServices {
 		resourceName := fmt.Sprintf("%s-project-service-%s", projectConfig.ResourceNamePrefix, service)
 
 		// Create the service resource

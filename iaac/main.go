@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"mlops/autoneg"
+	"mlops/cloudsql"
 	"mlops/flux"
 	"mlops/flyte"
 	"mlops/gke"
@@ -12,6 +13,7 @@ import (
 	"mlops/storage"
 	"mlops/vpc"
 
+	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/sql"
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -56,6 +58,13 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 			return err
 		}
 
+		var cloudSQL *sql.DatabaseInstance
+		if projectConfig.CloudSQL.Create {
+			cloudSQL, err = cloudsql.DeployCloudSQL(ctx, projectConfig, &cloudRegion, gcpNetwork)
+			if err != nil {
+				return err
+			}
+		}
 		var negServiceAccount *serviceaccount.Account
 		if config.GetBool(ctx, "vpc.autoNEG") {
 			var err error
@@ -86,7 +95,7 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 			}
 		}
 		if config.Get(ctx, "project:target") == "flyte" {
-			if err = flyte.CreateFlyteResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork, gcpSubnetwork, gcsBucket); err != nil {
+			if err = flyte.CreateFlyteResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcsBucket, cloudSQL); err != nil {
 				return err
 			}
 		}

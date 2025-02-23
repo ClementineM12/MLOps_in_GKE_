@@ -1,12 +1,31 @@
 package gke
 
 import (
+	"mlops/iam"
+
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 var (
 	GKEDefaultVersion = "1.31.4-gke.1183000"
+
+	AdministrationIAM = map[string]iam.IAM{
+		"admin": {
+			ResourceNamePrefix: "gke",
+			DisplayName:        "GKE Admin",
+			Roles: []string{
+				"roles/logging.logWriter",
+				"roles/monitoring.metricWriter",
+				"roles/meshtelemetry.reporter",
+				"roles/cloudtrace.agent",
+				"roles/monitoring.viewer",
+				"roles/storage.objectViewer",
+			},
+			CreateServiceAccount: true,
+			CreateMember:         true,
+		},
+	}
 
 	GKENodePoolSpecificConfig = map[string]NodePoolConfig{
 		"management": {

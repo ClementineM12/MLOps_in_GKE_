@@ -32,11 +32,11 @@ insecure: false #it means, the connection uses SSL, even if it's a temporary cer
 
 > NOTE: this is only needed for CLI access (`flytectl` or `pyflyte`)
 
-### Testing your deployment
+### Testing the deployment
 
 5. In your browser, go to `https://<your-DNS-record>/console`
 
-> WARNING: At this point, Flyte's UI would be exposed to the Internet. We stronly encourage you to add authentication to your deployment by following [the documentation](https://docs.flyte.org/en/latest/deployment/configuration/auth_setup.html)
+> WARNING: At this point, Flyte's UI would be exposed to the Internet. It is highly encouraged that authentication is added to the deployment by following [the documentation](https://docs.flyte.org/en/latest/deployment/configuration/auth_setup.html)
 
 ### How to connect to Artifact Registry?
 
@@ -90,3 +90,8 @@ imagePullSecrets:
 - name: artifact-registry
 ```
 4. Run [the example](https://docs.flyte.org/projects/cookbook/en/latest/auto_examples/customizing_dependencies/image_spec.html#image-spec-example) in the docs to confirm.
+
+Flytectl is a Golang binary that can be installed on any platform supported by Golang.
+```
+brew install flyteorg/homebrew-tap/flytectl
+```

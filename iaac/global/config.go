@@ -13,6 +13,8 @@ func GenerateProjectConfig(
 ) ProjectConfig {
 
 	domain := config.Get(ctx, "project:domain")
+	whitelistedIPs := config.Get(ctx, "project:whitelistedIPs")
+
 	// Validate
 	validateArtifactRegistryConfig(ctx)
 
@@ -22,7 +24,9 @@ func GenerateProjectConfig(
 		Domain:             domain,
 		SSL:                configureSSL(ctx, domain),
 		EnabledRegions:     configureRegions(ctx),
-		Target:             configureTarget(ctx),
+		CloudSQL:           getCloudSQLConfig(ctx),
+		Email:              validateEmail(ctx),
+		WhitelistedIPs:     whitelistedIPs,
 	}
 }
 
@@ -99,24 +103,6 @@ func configureRegions(
 	return enabledRegions
 }
 
-// configureTarget retrieves and validates the "gke:target" configuration value.
-// The target must be set to either "management" or "deployment". If the target
-// is missing or invalid, the function logs an error and returns an empty string.
-func configureTarget(
-	ctx *pulumi.Context,
-) string {
-
-	target := config.Get(ctx, "gke:target")
-	if target == "" {
-		ctx.Log.Error("Target must be provided: set to either 'deployment' or 'management'.", nil)
-	} else {
-		if target != "management" && target != "deployment" {
-			ctx.Log.Error("Target must be set to either 'deployment' or 'management'; Provide a valid target.", nil)
-		}
-	}
-	return target
-}
-
 func validateArtifactRegistryConfig(
 	ctx *pulumi.Context,
 ) {
@@ -128,4 +114,31 @@ func validateArtifactRegistryConfig(
 			ctx.Log.Error("Artifact Registry is enabled; provide a GitHub Repository configuration 'ar:githubRepo'.", nil)
 		}
 	}
+}
+
+func getCloudSQLConfig(
+	ctx *pulumi.Context,
+) *CloudSQLConfig {
+
+	return &CloudSQLConfig{
+		Create:             config.GetBool(ctx, "cloudsql:create"),
+		User:               config.Get(ctx, "cloudsql:user"),
+		Database:           config.Get(ctx, "cloudsql:database"),
+		InstancePrefixName: config.Get(ctx, "cloudsql:instancePrefixName"),
+	}
+}
+
+func validateEmail(
+	ctx *pulumi.Context,
+) string {
+
+	if config.Get(ctx, "project:target") == "flyte" {
+		email := config.Get(ctx, "project:email")
+		if email == "" {
+			ctx.Log.Error("Cert manager needs field `project:email` defined.", nil)
+			return email
+		}
+		return email
+	}
+	return ""
 }

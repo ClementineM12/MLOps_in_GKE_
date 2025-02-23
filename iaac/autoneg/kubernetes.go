@@ -3,6 +3,7 @@ package autoneg
 import (
 	"fmt"
 	"mlops/global"
+	"mlops/iam"
 
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/apps/v1"
 	coreV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
@@ -22,7 +23,7 @@ func createAutoNEGKubernetesResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
-	serviceAccountEmail pulumi.StringArrayOutput,
+	serviceAccount map[string]iam.ServiceAccountInfo,
 ) pulumi.Output {
 
 	// Create Namespace
@@ -33,7 +34,7 @@ func createAutoNEGKubernetesResources(
 	}
 
 	// Create Service Account
-	autoNegServiceAccount, err := createServiceAccount(ctx, projectConfig, k8sProvider, serviceAccountEmail, ns)
+	autoNegServiceAccount, err := createServiceAccount(ctx, projectConfig, k8sProvider, serviceAccount["AutoNEG"].Email, ns)
 	if err != nil {
 		ctx.Log.Warn("Failed to create Service Account for Auto NEG Controller", nil)
 		return pulumi.StringOutput{}.ApplyT(func(_ string) string { return "Error: Service Account creation failed" })
@@ -92,7 +93,7 @@ func createServiceAccount(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
-	serviceAccountEmail pulumi.StringArrayOutput,
+	serviceAccountEmail pulumi.StringOutput,
 	ns *coreV1.Namespace,
 ) (*coreV1.ServiceAccount, error) {
 
@@ -105,7 +106,7 @@ func createServiceAccount(
 				"app": pulumi.String("autoneg"),
 			},
 			Annotations: pulumi.StringMap{
-				"iam.gke.io/gcp-service-account": serviceAccountEmail.Index(pulumi.Int(0)).ToStringOutput(),
+				"iam.gke.io/gcp-service-account": serviceAccountEmail,
 			},
 		},
 	},

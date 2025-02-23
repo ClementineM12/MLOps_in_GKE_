@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"errors"
 	"fmt"
 	"mlops/global"
 	"strings"
@@ -11,22 +12,53 @@ import (
 )
 
 // createServiceAccount handles the creation of a Service Account
-func createServiceAccount(
+func createServiceAccounts(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	svc *svc,
-) (*serviceaccount.Account, pulumi.StringArrayOutput, error) {
+	IAM map[string]IAM,
+) (map[string]ServiceAccountInfo, error) {
 
-	resourceName := fmt.Sprintf("%s-%s-iam-svc", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
-	gcpServiceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
-		Project:     pulumi.String(projectConfig.ProjectId),
-		AccountId:   pulumi.String(svc.AccountId),
-		DisplayName: pulumi.String(svc.DisplayName),
-	})
-	serviceAccountMember := gcpServiceAccount.Email.ApplyT(func(email string) []string {
-		return []string{fmt.Sprintf("serviceAccount:%s", email)}
-	}).(pulumi.StringArrayOutput)
-	return gcpServiceAccount, serviceAccountMember, err
+	serviceAccounts := make(map[string]ServiceAccountInfo)
+
+	for roleName, iamInfo := range IAM {
+		if !iamInfo.CreateServiceAccount {
+			continue
+		}
+
+		resourceName := fmt.Sprintf("%s-%s-iam-svc", projectConfig.ResourceNamePrefix, roleName)
+		IAMServiceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
+			AccountId:   pulumi.String(fmt.Sprintf("%s-%s", iamInfo.ResourceNamePrefix, roleName)),
+			Project:     pulumi.String(projectConfig.ProjectId),
+			DisplayName: pulumi.String(iamInfo.DisplayName), // TO CHECK IF WORKS
+		})
+		if err != nil {
+			return nil, err
+		}
+		if IAMServiceAccount == nil {
+			ctx.Log.Error("IAMServiceAccount is nil", nil)
+			return nil, errors.New("IAMServiceAccount is nil")
+		}
+		member := IAMServiceAccount.Email.ApplyT(func(email string) []string {
+			if email == "" {
+				ctx.Log.Error("IAMServiceAccount.Email resolved as empty", nil)
+			}
+			return []string{fmt.Sprintf("serviceAccount:%s", email)}
+		}).(pulumi.StringArrayOutput)
+
+		email := IAMServiceAccount.AccountId.ApplyT(func(id string) string {
+			if id == "" {
+				ctx.Log.Error("IAMServiceAccount.AccountId resolved as empty", nil)
+			}
+			return fmt.Sprintf("%s@%s.iam.gserviceaccount.com", id, projectConfig.ProjectId)
+		}).(pulumi.StringOutput)
+
+		serviceAccounts[roleName] = ServiceAccountInfo{
+			ServiceAccount: IAMServiceAccount,
+			Member:         member,
+			Email:          email,
+		}
+	}
+	return serviceAccounts, nil
 }
 
 // CreateIAMRole creates a Custom IAM Role that will be used by the Kubernetes Deployment.
@@ -34,59 +66,81 @@ func createServiceAccount(
 func createIAMRole(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	svc *svc,
+	iamInfo *IAM,
+	roleName string,
+	roleIDResourceNameSuffix string,
 ) (*projects.IAMCustomRole, error) {
 
 	roleIDResourceNamePrefix := strings.ReplaceAll(projectConfig.ResourceNamePrefix, "-", "_") // It must match regexp "^[a-zA-Z0-9_\\.]{3,64}$"
 
-	resourceName := fmt.Sprintf("%s-iam-custom-role-%s", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
-	gcpIAMRole, err := projects.NewIAMCustomRole(ctx, resourceName, &projects.IAMCustomRoleArgs{
+	resourceName := fmt.Sprintf("%s-%s-iam-role", projectConfig.ResourceNamePrefix, roleName)
+	return projects.NewIAMCustomRole(ctx, resourceName, &projects.IAMCustomRoleArgs{
+		Title:       pulumi.String(roleName),
+		Permissions: iamInfo.Permissions,
 		Project:     pulumi.String(projectConfig.ProjectId),
-		Description: pulumi.String(svc.Description),
-		Permissions: svc.Permissions,
-		RoleId:      pulumi.String(fmt.Sprintf("%s_iam_role_%s", roleIDResourceNamePrefix, svc.IAMRoleId)),
-		Title:       pulumi.String(svc.Title),
+		RoleId:      pulumi.String(fmt.Sprintf("%s_iam_role_%s", roleIDResourceNamePrefix, roleIDResourceNameSuffix)),
 	})
-	return gcpIAMRole, err
 }
 
-// CreateIAMRoleBinding creates the IAM Role Binding to link to the Service Account to Custom Role.
+// CreateIAMServiceRoleBinding creates the IAM Role Binding to link to the Service Account to Custom Role.
+func createIAMServiceRoleBinding(
+	ctx *pulumi.Context,
+	projectConfig global.ProjectConfig,
+	roleName string,
+	serviceAccounts map[string]ServiceAccountInfo,
+	IAMRole *projects.IAMCustomRole,
+) (*projects.IAMBinding, error) {
+
+	resourceName := fmt.Sprintf("%s-%s-iam-role-binding", projectConfig.ResourceNamePrefix, roleName)
+	return projects.NewIAMBinding(ctx, resourceName, &projects.IAMBindingArgs{
+		Project: pulumi.String(projectConfig.ProjectId),
+		Role:    IAMRole.ID(),
+		Members: serviceAccounts[roleName].Member,
+	})
+}
+
 func createIAMRoleBinding(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	svc *svc,
-	gcpIAMRole *projects.IAMCustomRole,
-	gcpServiceAccount *serviceaccount.Account,
-	serviceAccountMember pulumi.StringArrayOutput,
+	iamInfo *IAM,
+	roleName string,
+	serviceAccounts map[string]ServiceAccountInfo,
 ) (*projects.IAMBinding, error) {
 
-	resourceName := fmt.Sprintf("%s-iam-role-binding-%s", projectConfig.ResourceNamePrefix, svc.resourceNameSuffix)
-	gcpIAMRoleBinding, err := projects.NewIAMBinding(ctx, resourceName, &projects.IAMBindingArgs{
-		Members: serviceAccountMember,
-		Project: pulumi.String(projectConfig.ProjectId),
-		Role:    gcpIAMRole.ID(),
-	}, pulumi.DependsOn([]pulumi.Resource{gcpServiceAccount}))
+	roleBind := iamInfo.RoleBinding
 
-	return gcpIAMRoleBinding, err
+	resourceName := fmt.Sprintf("%s-iam-role-binding-%s", projectConfig.ResourceNamePrefix, transformRole(roleBind))
+	return projects.NewIAMBinding(ctx, resourceName, &projects.IAMBindingArgs{
+		Project: pulumi.String(projectConfig.ProjectId),
+		Role:    pulumi.String(roleBind),
+		Members: serviceAccounts[roleName].Member,
+	})
 }
 
 func createIAMPolicyMembers(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	svc *svc,
-	serviceAccountMember pulumi.StringArrayOutput,
+	IAM map[string]IAM,
+	serviceAccounts map[string]ServiceAccountInfo,
 ) error {
-	roles := svc.Roles
 
-	for _, role := range roles {
-		sanitizedRoleName := strings.ReplaceAll(strings.Split(role, "/")[1], ".", "-")
-		_, err := projects.NewIAMMember(ctx, fmt.Sprintf("%s-%s", svc.AccountId, sanitizedRoleName), &projects.IAMMemberArgs{
-			Project: pulumi.String(projectConfig.ProjectId),
-			Role:    pulumi.String(role),
-			Member:  serviceAccountMember.Index(pulumi.Int(0)),
-		})
-		if err != nil {
-			return err
+	for roleName, iamInfo := range IAM {
+		if iamInfo.CreateMember {
+			roles := iamInfo.Roles
+			accountId := fmt.Sprintf("%s-%s", iamInfo.ResourceNamePrefix, roleName)
+
+			for _, role := range roles {
+				sanitizedRoleName := strings.ReplaceAll(strings.Split(role, "/")[1], ".", "-")
+				_, err := projects.NewIAMMember(ctx, fmt.Sprintf("%s-%s", accountId, sanitizedRoleName), &projects.IAMMemberArgs{
+					Project: pulumi.String(projectConfig.ProjectId),
+					Role:    pulumi.String(role),
+					Member:  serviceAccounts[roleName].Member.Index(pulumi.Int(0)),
+				})
+				if err != nil {
+					return err
+				}
+			}
+			return nil
 		}
 	}
 	return nil

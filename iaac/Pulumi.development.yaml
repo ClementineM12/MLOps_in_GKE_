@@ -2,14 +2,16 @@ config:
   gcp:project: mlops-development-project
   gcp:region: europe-west8
 
-  project:prefix: ml-01
-  # project:domain: "cl-mlrun-test.tedmosbyisajerk.cc"
+  project:prefix: ml-02
+  project:target: flyte
+
+  project:domain: <provide_your_domain>
+  project:email: <provide_your_email>
+  project:whitelistedIPs: "<provide_your_IP>/32"
   
   vpc:regions: "009"
   vpc:loadBalancer: false
   vpc.autoNEG: false
-  
-  gke:target: deployment
 
   gke:nodePoolMachineType: e2-standard-2
   gke:nodePoolDiskSizeGb: 100
@@ -33,5 +35,8 @@ config:
   ar:cdSACreate: false
   ar:githubRepo: "ClementineM12/MLOps"
 
-  project:target: flyte
+  cloudsql:create: true 
+  cloudsql:instancePrefixName: flyte
+  cloudsql:user: flyteadmin 
+  cloudsql:database: flyte
   

@@ -1,6 +1,8 @@
 package autoneg
 
 import (
+	"mlops/iam"
+
 	rbacV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/rbac/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -79,6 +81,37 @@ var Roles = []RoleDefinition{
 				Resources: pulumi.StringArray{pulumi.String("events")},
 				Verbs:     pulumi.StringArray{pulumi.String("create")},
 			},
+		},
+	},
+}
+
+// - AutoNEG: The AutoNEG (Automatic Network Endpoint Groups) service account is specifically designed to support
+// 	   GKE's Automatic Network Endpoint Group functionality. AutoNEG simplifies the configuration and
+// 	   management of backend services for Kubernetes clusters by automatically managing network endpoint
+// 	   group memberships. This service account requires precise permissions to perform its role effectively.
+// - Admin: This is a general-purpose admin service account. No custom IAM role is created for this account.
+
+var AutoNEGSystemIAM = map[string]iam.IAM{
+	"autoneg": {
+		ResourceNamePrefix: "autoneg",
+		DisplayName:        "AutoNEG Service Account",
+		Description:        "Custom IAM Role - GKE AutoNeg",
+		Title:              "AutoNEG",
+		IAMRoleId:          "autoneg_system",
+		Permissions: pulumi.StringArray{
+			pulumi.String("compute.backendServices.get"),
+			pulumi.String("compute.backendServices.update"),
+			pulumi.String("compute.regionBackendServices.get"),
+			pulumi.String("compute.regionBackendServices.update"),
+			pulumi.String("compute.networkEndpointGroups.use"),
+			pulumi.String("compute.healthChecks.useReadOnly"),
+			pulumi.String("compute.regionHealthChecks.useReadOnly"),
+		},
+		CreateRole:           true,
+		CreateMember:         true,
+		CreateServiceAccount: true,
+		WorkloadIdentityBinding: []string{
+			"autoneg-system/autoneg-controller-manager",
 		},
 	},
 }

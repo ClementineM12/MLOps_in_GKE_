@@ -1,21 +1,26 @@
 userSettings:
-  googleProjectId: ${gcp-project-id}
-  dbHost: ${dbhost}
-  dbPassword: ${dbpassword}
-  bucketName: ${gcsbucket}
-  hostName: ${hostname}
-  flyteadminServiceAccount: ${flyteadminServiceAccount}
-  flytepropellerServiceAccount: ${flytepropellerServiceAccount}
-  flyteschedulerServiceAccount: ${flyteschedulerServiceAccount}
-  datacatalogServiceAccount: ${datacatalogServiceAccount}
-  flyteworkersServiceAccount: ${flyteworkersServiceAccount}
+  googleProjectId: &gcpProjectId ${gcpProjectId} 
+  dbHost: &dbHost ${dbHost}
+  dbPassword: &dbPassword ${dbPassword}
+  bucketName: &gcsbucket ${gcsbucket}
+  rawDataBucketName: ${gcsbucket}
+  hostName: &hostName ${hostName}
 
-#
-# FLYTEADMIN
-#
+  AdminServiceAccount: &AdminServiceAccount ${AdminServiceAccount}
+  PropellerServiceAccount: &PropellerServiceAccount ${PropellerServiceAccount}
+  SchedulerServiceAccount: &SchedulerServiceAccount ${SchedulerServiceAccount}
+  DatacatalogServiceAccount: &DatacatalogServiceAccount ${DatacatalogServiceAccount}
+  WorkersServiceAccount: &WorkersServiceAccount ${WorkersServiceAccount}
+
+  dbName: &dbName flyte
+  dbUsername: &dbUsername flyteadmin
+
+  whitelistedIPs: &whitelistedIPs ${whitelistedIPs}
 
 flyteadmin:
   replicaCount: 1
+  serviceMonitor:
+    enabled: false
   serviceAccount:
     # -- If the service account is created by you, make this false, else a new service account will be created and the flyteadmin role will be added
     # you can change the name of this role
@@ -23,14 +28,20 @@ flyteadmin:
     annotations:
       # Needed for gcp workload identity to function
       # https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
-      iam.gke.io/gcp-service-account: "{{ .Values.userSettings.flyteadminServiceAccount }}@{{ .Values.userSettings.googleProjectId }}.iam.gserviceaccount.com"
+      iam.gke.io/gcp-service-account: *AdminServiceAccount
   resources:
     limits:
-      ephemeral-storage: 200Mi
+      cpu: 1000m
+      ephemeral-storage: 2Gi
+      memory: 2G
     requests:
-      cpu: 50m
-      ephemeral-storage: 200Mi
-      memory: 200Mi
+      cpu: 500m
+      ephemeral-storage: 2Gi
+      memory: 1G
+  service:
+    annotations:
+      # Required for the ingress to properly route grpc traffic to grpc port
+      cloud.google.com/app-protocols: '{"grpc":"HTTP2"}'
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -40,9 +51,6 @@ flyteadmin:
           topologyKey: kubernetes.io/hostname
   initialProjects:
     - flytesnacks
-#
-# DATACATALOG
-#
 
 datacatalog:
   replicaCount: 1
@@ -53,7 +61,7 @@ datacatalog:
     annotations:
       # Needed for gcp workload identity to function
       # https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
-      iam.gke.io/gcp-service-account: "{{ .Values.userSettings.datacatalogServiceAccount }}@{{ .Values.userSettings.googleProjectId }}.iam.gserviceaccount.com"
+      iam.gke.io/gcp-service-account: *DatacatalogServiceAccount
   resources:
     limits:
       cpu: 500m
@@ -62,6 +70,10 @@ datacatalog:
       cpu: 50m
       ephemeral-storage: 2Gi
       memory: 200Mi
+  service:
+    annotations:
+      # Required for the ingress to properly route grpc traffic to grpc port
+      cloud.google.com/app-protocols: '{"grpc":"HTTP2"}'
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -70,13 +82,13 @@ datacatalog:
               app.kubernetes.io/name: datacatalog
           topologyKey: kubernetes.io/hostname
 
-#
-# FLYTEPROPELLER
-#
-
 flytepropeller:
   replicaCount: 1
   manager: false
+  serviceMonitor:
+    enabled: false
+  service:
+    enabled: false
   serviceAccount:
     # -- If the service account is created by you, make this false, else a new service account will be created and the iam-role-flyte will be added
     # you can change the name of this role
@@ -84,12 +96,12 @@ flytepropeller:
     annotations:
       # Needed for gcp workload identity to function
       # https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
-      iam.gke.io/gcp-service-account: "{{ .Values.userSettings.flytepropellerServiceAccount }}@{{ .Values.userSettings.googleProjectId }}.iam.gserviceaccount.com"
+      iam.gke.io/gcp-service-account: *PropellerServiceAccount
   resources:
     limits:
       cpu: 500m
       ephemeral-storage: 2Gi
-      memory: 1Gi
+      memory: 2Gi
     requests:
       cpu: 50m
       ephemeral-storage: 2Gi
@@ -103,15 +115,6 @@ flytepropeller:
               app.kubernetes.io/name: flytepropeller
           topologyKey: kubernetes.io/hostname
 
-#
-# FLYTE_AGENT
-#
-flyteagent:
-  enabled: false
-
-#
-# FLYTECONSOLE
-#
 
 flyteconsole:
   replicaCount: 1
@@ -126,6 +129,9 @@ flyteconsole:
               app.kubernetes.io/name: flyteconsole
           topologyKey: kubernetes.io/hostname
 
+flyteagent:
+  enabled: false # This is by default false for Single Cluster
+
 # --
 # Flyte uses a cloud hosted Cron scheduler to run workflows on a schedule. The following module is optional. Without,
 # this module, you will not have scheduled launchplans/workflows.
@@ -136,16 +142,13 @@ workflow_scheduler:
 # --
 # Workflow notifications module is an optional dependency. Flyte uses cloud native pub-sub systems to notify users of
 # various events in their workflows
-
-
-#
-# COMMON
-#
+workflow_notifications:
+  enabled: false
 
 common:
   ingress:
     ingressClassName: "nginx"
-    host: "{{ .Values.userSettings.hostName }}"
+    host: *hostName
     tls:
       enabled: true
       secretName: flyte-secret-tls
@@ -155,6 +158,7 @@ common:
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       cert-manager.io/issuer: "letsencrypt-production"
       acme.cert-manager.io/http01-edit-in-place: "true"
+      nginx.ingress.kubernetes.io/whitelist-source-range: *whitelistedIPs
     # --- separateGrpcIngress puts GRPC routes into a separate ingress if true. Required for certain ingress controllers like nginx.
     separateGrpcIngress: true
     # --- Extra Ingress annotations applied only to the GRPC ingress. Only makes sense if `separateGrpcIngress` is enabled.
@@ -175,66 +179,47 @@ common:
       type: Opaque
       stringData:
         # -- If using plain text you can provide the password here
-        pass.txt: "{{ .Values.userSettings.dbPassword }}"
-
-# -----------------------------------------------------
-# Core dependencies that should be configured for Flyte to work on any platform
-# Specifically 2 - Storage (s3, gcs etc), Production RDBMS - Aurora, CloudSQL etc
-# ------------------------------------------------------
-#
-# STORAGE SETTINGS
-#
+        pass.txt: *dbPassword
 
 storage:
-  # -- Sets the storage type. Supported values are sandbox, s3, gcs and custom.
   type: gcs
-  # -- bucketName defines the storage bucket flyte will use. Required for all types except for sandbox.
-  bucketName: "{{ .Values.userSettings.bucketName }}"
-  # -- settings for storage type s3
+  bucketName: *gcsbucket
   gcs:
-    # -- GCP project ID. Required for storage type gcs.
-    projectId: "{{ .Values.userSettings.googleProjectId }}"
+    projectId: *gcpProjectId
 
 db:
   datacatalog:
     database:
       port: 5432
-      # -- Create a user called flyteadmin
-      username: flyte
-      host: "{{ .Values.userSettings.dbHost }}"
-      # -- Create a DB called datacatalog (OR change the name here)
-      dbname: flyte
+      username: *dbUsername
+      host: *dbHost
+      dbname: *dbName
       passwordPath: /etc/db/pass.txt
 
   admin:
     database:
       port: 5432
-      # -- Create a user called flyteadmin
-      username: flyte
-      host: "{{ .Values.userSettings.dbHost }}"
-      # -- Create a DB called flyteadmin (OR change the name here)
-      dbname: flyte
+      username: *dbUsername
+      host: *dbHost
+      dbname: *dbName
       passwordPath: /etc/db/pass.txt
-
-#
-# CONFIGMAPS
-#
 
 configmap:
   adminServer:
     server:
       httpPort: 8088
-      grpcPort: 8089
+      grpc:
+        port: 8089
       security:
         secure: false
         useAuth: false
         allowCors: true
         allowedOrigins:
-            # Accepting all domains for Sandbox installation
+          # Accepting all domains for Sandbox installation
           - "*"
         allowedHeaders:
           - "Content-Type"
-   
+
   task_resource_defaults:
     task_resources:
       defaults:
@@ -250,11 +235,16 @@ configmap:
       region:
       scheme: "gcs"
       signedUrls:
-        durationMinutes: 3 
+        durationMinutes: 3
+
+  # Adds the namespace mapping to default to only domain name instead of project-domain in case of GCP
+  # namespace_config:
+  #   namespace_mapping:
+  #     template: "{{ domain }}"
 
   core:
     propeller:
-      rawoutput-prefix: "gs://{{ .Values.userSettings.bucketName }}/"
+      rawoutput-prefix: "gs://{{ .Values.userSettings.rawDataBucketName }}/"
       workers: 40
       gc-interval: 12h
       max-workflow-retries: 50
@@ -279,6 +269,8 @@ configmap:
           - container
           - sidecar
           - k8s-array
+          - agent-service
+          - echo
         default-for-task-types:
           container: container
           sidecar: sidecar
@@ -323,24 +315,24 @@ cluster_resource_manager:
             - projectQuotaMemory:
                 value: "4000Mi"
             - gsa:
-                value: "{{ .Values.userSettings.flyteworkersServiceAccount }}@{{ .Values.userSettings.googleProjectId }}.iam.gserviceaccount.com"
+                value: *WorkersServiceAccount
         - staging:
             - projectQuotaCpu:
                 value: "2"
             - projectQuotaMemory:
                 value: "3000Mi"
             - gsa:
-                value: "{{ .Values.userSettings.flyteworkersServiceAccount }}@{{ .Values.userSettings.googleProjectId }}.iam.gserviceaccount.com"
+                value: *WorkersServiceAccount
         - development:
             - projectQuotaCpu:
                 value: "2"
             - projectQuotaMemory:
                 value: "3000Mi"
             - gsa:
-                value: "{{ .Values.userSettings.flyteworkersServiceAccount }}@{{ .Values.userSettings.googleProjectId }}.iam.gserviceaccount.com"
+                value: *WorkersServiceAccount
 
   templates:
-    # -- Template for namespaces resources
+    # -- Template for namespaced resources
     - key: aa_namespace
       value: |
         apiVersion: v1
@@ -375,7 +367,6 @@ cluster_resource_manager:
           hard:
             limits.cpu: {{ projectQuotaCpu }}
             limits.memory: {{ projectQuotaMemory }}
-    
     #- key: ac_imagePullSecret
     #  value: |
     #    apiVersion: v1
@@ -385,11 +376,6 @@ cluster_resource_manager:
     #    type: Opaque
     #    data:
     #      password: <Password>
-         
-
-#
-# SPARKOPERATOR
-#
 
 sparkoperator:
   enabled: false

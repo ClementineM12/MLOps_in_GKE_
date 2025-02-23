@@ -1,4 +1,4 @@
-package flyte
+package cloudsql
 
 import (
 	"fmt"
@@ -22,7 +22,8 @@ func createServiceNetworking(
 		AddressType:  pulumi.String("INTERNAL"),
 		PrefixLength: pulumi.Int(16),
 		Network:      network.SelfLink,
-	})
+	},
+		pulumi.DependsOn([]pulumi.Resource{network}))
 }
 
 func createServiceNetworkingConnection(
@@ -32,10 +33,12 @@ func createServiceNetworkingConnection(
 	serviceNetworking *compute.GlobalAddress,
 ) (*servicenetworking.Connection, error) {
 
-	resourceName := fmt.Sprintf("%s-db-netowrk", projectConfig.ResourceNamePrefix)
+	resourceName := fmt.Sprintf("%s-db-network", projectConfig.ResourceNamePrefix)
 	return servicenetworking.NewConnection(ctx, resourceName, &servicenetworking.ConnectionArgs{
 		Network:               network.ID(),
 		Service:               pulumi.String("servicenetworking.googleapis.com"),
 		ReservedPeeringRanges: pulumi.StringArray{serviceNetworking.Name},
-	}, pulumi.DependsOn([]pulumi.Resource{serviceNetworking}))
+	},
+		pulumi.DependsOn([]pulumi.Resource{serviceNetworking}),
+	)
 }

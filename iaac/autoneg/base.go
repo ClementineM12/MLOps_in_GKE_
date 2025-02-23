@@ -1,7 +1,9 @@
 package autoneg
 
 import (
+	"fmt"
 	"mlops/global"
+	"mlops/iam"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
@@ -15,13 +17,13 @@ func EnableAutoNEGController(
 ) (*serviceaccount.Account, error) {
 
 	// Create AutoNEG IAM Resources
-	gcpAutoNEGServiceAccount, gcpIAMAccountMember, err := createAutoNegIAMResources(ctx, projectConfig)
+	AutoNEGServiceAccount, err := iam.CreateIAMResources(ctx, projectConfig, AutoNEGSystemIAM)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to configure IAM access for Auto NEG Controller end-to-end: %w", err)
 	}
 
 	// Apply AutoNEG Kubernetes Deployment
-	negDeployment := createAutoNEGKubernetesResources(ctx, projectConfig, k8sProvider, gcpIAMAccountMember)
+	negDeployment := createAutoNEGKubernetesResources(ctx, projectConfig, k8sProvider, AutoNEGServiceAccount)
 
 	// Ensure NEG Deployment is applied before returning
 	negDeployment.ApplyT(func(_ interface{}) string {
@@ -29,5 +31,5 @@ func EnableAutoNEGController(
 		return "AutoNEG Deployment successful"
 	})
 
-	return gcpAutoNEGServiceAccount, nil
+	return AutoNEGServiceAccount["autoneg"].ServiceAccount, nil
 }

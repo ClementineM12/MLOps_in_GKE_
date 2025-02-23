@@ -32,16 +32,6 @@ func CreateObjectStorage(
 		ctx.Log.Error(fmt.Sprintf("Storage creation: %s", err), nil)
 	}
 
-	// Add a bucket IAM policy
-	_, err = storage.NewBucketIAMMember(ctx, "bucket-iam-member", &storage.BucketIAMMemberArgs{
-		Bucket: bucket.Name,
-		Role:   pulumi.String("roles/storage.admin"),
-		Member: pulumi.String("allAuthenticatedUsers"),
-	})
-	if err != nil {
-		ctx.Log.Error(fmt.Sprintf("Storage IAM creation: %s", err), nil)
-	}
-
 	ctx.Export("bucketName", bucket.Name)
 	return bucket.Name
 }

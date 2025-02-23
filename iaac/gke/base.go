@@ -23,7 +23,7 @@ func CreateGKEResources(
 
 	config := Configuration(ctx)
 
-	serviceAccount, _, err := iam.CreateServiceAccount(ctx, projectConfig, "Admin")
+	serviceAccount, err := iam.CreateIAMResources(ctx, projectConfig, AdministrationIAM)
 	if err != nil {
 		return nil, nil, err
 	}

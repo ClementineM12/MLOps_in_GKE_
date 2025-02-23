@@ -3,9 +3,9 @@ package gke
 import (
 	"fmt"
 	"mlops/global"
+	"mlops/iam"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
-	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/serviceaccount"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
@@ -82,7 +82,7 @@ func createGKE(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Kubernetes Cluster: %w", err)
 	}
-	ctx.Export("kubeconfig", generateKubeconfig(gcpGKECluster.Endpoint, gcpGKECluster.Name, gcpGKECluster.MasterAuth))
+	// ctx.Export("kubeconfig", generateKubeconfig(gcpGKECluster.Endpoint, gcpGKECluster.Name, gcpGKECluster.MasterAuth))
 	k8sProvider, err := createKubernetesProvider(ctx, cloudRegion.GKEClusterName, gcpGKECluster)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Kubernetes Provider configuration: %w", err)
@@ -100,7 +100,7 @@ func createGKENodePool(
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	clusterID pulumi.StringInput,
-	serviceAccount *serviceaccount.Account,
+	serviceAccount map[string]iam.ServiceAccountInfo,
 ) (*container.NodePool, error) {
 
 	resourceName := fmt.Sprintf("%s-gke-%s-np", projectConfig.ResourceNamePrefix, cloudRegion.Region)
@@ -116,7 +116,7 @@ func createGKENodePool(
 			Labels:         ClusterConfig.NodePool.ResourceLabels,
 			DiskType:       pulumi.String(ClusterConfig.NodePool.DiskType),
 			DiskSizeGb:     pulumi.Int(ClusterConfig.NodePool.DiskSizeGb),
-			ServiceAccount: serviceAccount.Email,
+			ServiceAccount: serviceAccount["admin"].ServiceAccount.Email,
 			ResourceLabels: pulumi.StringMap{
 				"goog-gke-node-pool-provisioning-model": pulumi.String("on-demand"),
 			},
@@ -141,7 +141,7 @@ func createGKENodePool(
 			AutoRepair:  pulumi.Bool(ClusterConfig.Management.AutoRepair),
 			AutoUpgrade: pulumi.Bool(ClusterConfig.Management.AutoUpgrade),
 		},
-	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount}))
+	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount["admin"].ServiceAccount}))
 
 	return gcpGKENodePool, err
 }
