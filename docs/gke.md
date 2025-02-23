@@ -1,5 +1,5 @@
 
-# 🚀 Google Kubernetes Engine (GKE) Namespaces Overview
+# 🚀 Google Kubernetes Engine (GKE) Overview
 
 When you create a **Google Kubernetes Engine (GKE) cluster**, several namespaces are **automatically created** and managed by **GKE and Kubernetes**. Below is a detailed breakdown of these namespaces and their purposes.
 
