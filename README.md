@@ -4,9 +4,9 @@
 
 Ensure the following tools are installed before running the project:
 
-- [Helm](https://helm.sh/)
-- [Golang](https://go.dev/)
-- [Pulumi](https://www.pulumi.com/)
+- [Helm](https://helm.sh/) `v3.14.0`
+- [Golang](https://go.dev/) `v1.22.6`
+- [Pulumi](https://www.pulumi.com/) `v3.147.0`
 
 ---
 
@@ -43,6 +43,12 @@ gcloud container clusters get-credentials CLUSTER_NAME --region REGION --project
 ## Deploy the MLOps tool of your choise
 
 Depending on the tool to deploy we set `project:target` configuration field in the IaaC. Specific guidelines are provided in `helm` root path for each tool.
+
+**Versions**
+
+* Kubeflow `v1.9.0`
+* MLRun `v1.7.2`
+* Flyte  [flyte-core] `v1.5.0`
 
 ## Shut Down Resources
 

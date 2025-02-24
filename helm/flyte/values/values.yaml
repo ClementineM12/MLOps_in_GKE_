@@ -115,7 +115,6 @@ flytepropeller:
               app.kubernetes.io/name: flytepropeller
           topologyKey: kubernetes.io/hostname
 
-
 flyteconsole:
   replicaCount: 1
   resources:

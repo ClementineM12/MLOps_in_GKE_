@@ -1,0 +1,13 @@
+flytekit
+pandas
+opencv-python
+numpy
+kagglehub
+google-cloud-storage
+Pillow
+matplotlib
+seaborn
+tensorflow==2.3.0
+requests
+pickle5
+scikit-learn

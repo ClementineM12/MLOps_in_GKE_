@@ -1,15 +1,5 @@
 # MLRun Guide
 
-This guide provides step-by-step instructions for setting up **MLRun** using **Helm** and **Kubernetes**.
-
-## 1. Add and Update Helm Repositories
-Add the **V3IO stable** Helm repository and update the chart list:
-```sh
-helm repo add mlrun-ce https://mlrun.github.io/ce && helm repo update
-```
-
----
-
 ## 2. Create a Docker Registry Secret
 Create a Kubernetes **secret** for authenticating with your container registry:
 ```sh
@@ -20,33 +10,6 @@ kubectl --namespace mlrun create secret docker-registry registry-credentials \
     --docker-email=<your-email>
 ```
 Replace placeholders (`<your-registry-server>`, `<your-username>`, etc.) with actual values.
-
----
-
-## 3. Deploy Ingress Controller
-Add the **Ingress Nginx** Helm repository and install the ingress controller:
-```sh
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm install nginx-ingress ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
-```
-Get extrernal IP:
-```
-kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller
-```
-
-Verify that the **Ingress controller** is running:
-```sh
-kubectl get svc -n ingress-nginx
-```
-
----
-
-## 4. Install Cert-Manager (For TLS Support)
-To enable **SSL/TLS certificates**, install Cert-Manager:
-```sh
-helm repo add jetstack https://charts.jetstack.io
-helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true
-```
 
 ---
 

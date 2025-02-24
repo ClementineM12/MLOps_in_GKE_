@@ -372,7 +372,3 @@ Click on "I Understand and Accept". After this you will be prompted to verify yo
 ![kaggle-secret-error-03](https://user-images.githubusercontent.com/17012391/175291608-daad1a47-119a-4e47-b48b-4f878d65ddd7.PNG)
 
 Add your phone number and Kaggle will send the code to your number, enter this code and verify your account. ( Note: pipeline wont run if your Kaggle account is not verified )
-
-## Success
-After the kaggle account is verified pipeline run is successful we will get the following:
-<img width="1244" alt="Screenshot 2022-06-06 at 3 00 51 PM" src="https://user-images.githubusercontent.com/17012391/172135040-50d6e9f3-d156-4e95-9b9f-492e99108d82.png">

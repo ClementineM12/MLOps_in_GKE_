@@ -1,5 +1,0 @@
-tensorflow==2.3.0
-pandas
-requests
-kaggle
-pickle5

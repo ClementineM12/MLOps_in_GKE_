@@ -1,6 +1,0 @@
-id: "cl-first-project-id"
-name: "My first project"
-labels:
-   values:
-     app: flyte
-description: "My first project."

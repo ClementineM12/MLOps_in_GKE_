@@ -13,10 +13,12 @@ func createServiceNetworking(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	network *compute.Network,
-) (*compute.GlobalAddress, error) {
+) ([]pulumi.Resource, error) {
+
+	dependencies := []pulumi.Resource{}
 
 	resourceName := fmt.Sprintf("%s-db-internal-address", projectConfig.ResourceNamePrefix)
-	return compute.NewGlobalAddress(ctx, resourceName, &compute.GlobalAddressArgs{
+	serviceNetworking, err := compute.NewGlobalAddress(ctx, resourceName, &compute.GlobalAddressArgs{
 		Name:         pulumi.String("cloudsql-vpc-service-networking"),
 		Purpose:      pulumi.String("VPC_PEERING"),
 		AddressType:  pulumi.String("INTERNAL"),
@@ -24,21 +26,23 @@ func createServiceNetworking(
 		Network:      network.SelfLink,
 	},
 		pulumi.DependsOn([]pulumi.Resource{network}))
-}
+	if err != nil {
+		return dependencies, nil
+	}
 
-func createServiceNetworkingConnection(
-	ctx *pulumi.Context,
-	projectConfig global.ProjectConfig,
-	network *compute.Network,
-	serviceNetworking *compute.GlobalAddress,
-) (*servicenetworking.Connection, error) {
-
-	resourceName := fmt.Sprintf("%s-db-network", projectConfig.ResourceNamePrefix)
-	return servicenetworking.NewConnection(ctx, resourceName, &servicenetworking.ConnectionArgs{
+	resourceName = fmt.Sprintf("%s-db-network", projectConfig.ResourceNamePrefix)
+	serviceNetworkConnection, err := servicenetworking.NewConnection(ctx, resourceName, &servicenetworking.ConnectionArgs{
 		Network:               network.ID(),
 		Service:               pulumi.String("servicenetworking.googleapis.com"),
 		ReservedPeeringRanges: pulumi.StringArray{serviceNetworking.Name},
 	},
 		pulumi.DependsOn([]pulumi.Resource{serviceNetworking}),
 	)
+	if err != nil {
+		return dependencies, err
+	}
+
+	dependencies = []pulumi.Resource{serviceNetworking, serviceNetworkConnection}
+
+	return dependencies, nil
 }

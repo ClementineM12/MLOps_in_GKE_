@@ -15,16 +15,11 @@ func DeployCloudSQL(
 	gcpNetwork *compute.Network,
 ) (*sql.DatabaseInstance, error) {
 
-	serviceNetworking, err := createServiceNetworking(ctx, projectConfig, gcpNetwork)
-	if err != nil {
-		return nil, err
-	}
-	serviceNetworkConnection, err := createServiceNetworkingConnection(ctx, projectConfig, gcpNetwork, serviceNetworking)
+	dependencies, err := createServiceNetworking(ctx, projectConfig, gcpNetwork)
 	if err != nil {
 		return nil, err
 	}
 
-	dependencies := []pulumi.Resource{serviceNetworking, serviceNetworkConnection}
 	cloudSQL, err := createCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork, dependencies)
 	if err != nil {
 		return nil, err

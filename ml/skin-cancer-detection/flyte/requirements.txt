@@ -1,0 +1,12 @@
+flytekit
+pandas
+opencv-python
+numpy
+kagglehub
+google-cloud-storage
+Pillow
+matplotlib
+seaborn
+tensorflow
+keras
+scikit-learn

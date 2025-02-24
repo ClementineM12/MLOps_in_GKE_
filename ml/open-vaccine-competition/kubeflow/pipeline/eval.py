@@ -1,10 +1,11 @@
-import json
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import argparse
-import os
-import pickle5 as pkl
+# import os
+# import pickle5 as pkl
+# import json
 
 from tensorflow.keras.preprocessing.text import Tokenizer
 
@@ -140,9 +141,6 @@ def build_model(vocab_size, seq_length=TRAIN_SEQUENCE_LENGTH, pred_len=68,
     model = tf.keras.Model(inputs=inputs, outputs=out)
     
     return model
-
-
-
 
 with open('/data/myfile.txt') as fp:
     for line in fp:

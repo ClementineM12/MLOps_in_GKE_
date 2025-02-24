@@ -108,20 +108,6 @@ def create_folder_segmented():
 
 
 def create_segmented_pictures(images_array, skin_200, folder_name):
-    """Performs image segmentation on each image using OpenCV, saves the segmented images to the specified folder, 
-    and updates the dictionary with the segmented image data.
-
-    It first defines a kernel with a size of 8x8 to use in the image segmentation process. It then iterates 
-    over each image in the array and performs the following operations:
-
-    Convert the image from color to grayscale using cv2.cvtColor
-    Apply median blur to the grayscale image using cv2.medianBlur
-    Perform Otsu's thresholding using cv2.threshold to obtain a binary image
-    Crop the binary image to a specified region of interest
-    Invert the colors of the binary image using cv2.bitwise_not
-    
-    Save the segmented image to the specified folder using PIL's Image.fromarray and the image ID from the skin_200 dictionary.
-    The function returns nothing and only saves the segmented images to the specified folder."""
     kernel = np.ones((8,8), np.uint8)
     skin_200['segmented_image'] = ''
     for i in range(len(images_array)):
@@ -137,3 +123,4 @@ def create_segmented_pictures(images_array, skin_200, folder_name):
         image_saved = Image.fromarray(image_cropped)
         image_seg_id = skin_200['image_id'][i]
         image_saved.save(f'{folder_name}/segmented_{image_seg_id}.jpg', 'JPEG')
+        

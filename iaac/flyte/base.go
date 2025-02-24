@@ -2,10 +2,12 @@ package flyte
 
 import (
 	"fmt"
+	"mlops/cloudsql"
 	"mlops/global"
 	"mlops/iam"
+	"mlops/storage"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v6/go/gcp/sql"
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -21,11 +23,15 @@ func CreateFlyteResources(
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
-	gcsBucket pulumi.StringInput,
-	cloudSQL *sql.DatabaseInstance,
+	gcpNetwork *compute.Network,
 ) error {
 
 	serviceAccounts, err := iam.CreateIAMResources(ctx, projectConfig, FlyteIAM)
+	if err != nil {
+		return err
+	}
+	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, "flyte-project-bucket-01")
+	cloudSQL, err := cloudsql.DeployCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork)
 	if err != nil {
 		return err
 	}
@@ -38,6 +44,8 @@ func CreateFlyteResources(
 			return err
 		}
 	}
+	configureSAIAMPolicy(ctx, projectConfig, serviceAccounts)
+
 	return nil
 }
 
@@ -96,9 +104,10 @@ func deployFlyteCore(
 		// Deploy the Helm release for Flyte-Core.
 		resourceName := fmt.Sprintf("%s-flyte-core", projectConfig.ResourceNamePrefix)
 		_, err = helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
-			Name:      pulumi.String("flyte-core"),
-			Namespace: pulumi.String("flyte"),
-			Version:   pulumi.String("v1.15.0"),
+			Name:            pulumi.String("flyte-core"),
+			Namespace:       pulumi.String("flyte"),
+			CreateNamespace: pulumi.Bool(true),
+			Version:         pulumi.String("v1.15.0"),
 			RepositoryOpts: &helm.RepositoryOptsArgs{
 				Repo: pulumi.String("https://flyteorg.github.io/flyte"),
 			},

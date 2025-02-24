@@ -97,3 +97,15 @@ Flytectl is a Golang binary that can be installed on any platform supported by G
 ```
 brew install flyteorg/homebrew-tap/flytectl
 ```
+
+## Projects 
+
+Create your first project: 
+* Define a yaml file which will store the details of your project and then run:
+```sh
+    flytectl create project --file <your_project_file>
+```
+* Get your projects:
+```sh
+    flytectl get projects
+```

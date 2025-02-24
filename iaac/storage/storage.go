@@ -12,6 +12,7 @@ import (
 func CreateObjectStorage(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
+	bucketName string,
 ) pulumi.StringOutput {
 
 	var bucketLocation string
@@ -22,7 +23,12 @@ func CreateObjectStorage(
 	}
 
 	resourceName := fmt.Sprintf("%s-data-bucket", projectConfig.ResourceNamePrefix)
+	if bucketName == "" {
+		bucketName = resourceName
+	}
+
 	bucket, err := storage.NewBucket(ctx, resourceName, &storage.BucketArgs{
+		Name:                     pulumi.String(bucketName),
 		Location:                 pulumi.String(bucketLocation),
 		StorageClass:             pulumi.String("STANDARD"),
 		ForceDestroy:             pulumi.Bool(true),
@@ -31,7 +37,5 @@ func CreateObjectStorage(
 	if err != nil {
 		ctx.Log.Error(fmt.Sprintf("Storage creation: %s", err), nil)
 	}
-
-	ctx.Export("bucketName", bucket.Name)
 	return bucket.Name
 }

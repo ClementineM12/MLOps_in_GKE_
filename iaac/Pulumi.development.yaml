@@ -5,9 +5,13 @@ config:
   project:prefix: ml-02
   project:target: flyte
 
-  project:domain: <provide_your_domain>
-  project:email: <provide_your_email>
-  project:whitelistedIPs: "<provide_your_IP>/32"
+  # project:domain: <provide_your_domain>
+  # project:email: <provide_your_email>
+  # project:whitelistedIPs: "<provide_your_IP>/32"
+
+  project:domain: "tedmosbyisajerk.cc"
+  project:email: christina.12mar@gmail.com
+  project:whitelistedIPs: "77.49.120.21/32"
  
   vpc:regions: "009"
   vpc:loadBalancer: false
