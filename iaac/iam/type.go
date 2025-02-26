@@ -15,7 +15,8 @@ type IAM struct {
 	CreateRole              bool
 	CreateMember            bool
 	CreateServiceAccount    bool
-	RoleBinding             string
+	CreateKey               bool
+	RoleBindings            []string
 	Roles                   []string
 	WorkloadIdentityBinding []string
 }
@@ -24,4 +25,5 @@ type ServiceAccountInfo struct {
 	ServiceAccount *serviceaccount.Account
 	Member         pulumi.StringArrayOutput
 	Email          pulumi.StringOutput
+	Key            *serviceaccount.Key
 }

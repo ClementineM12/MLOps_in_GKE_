@@ -1,3 +1,5 @@
+# Helm Chart: https://github.com/flyteorg/flyte/blob/v1.15.0/charts/flyte-core/values.yaml
+
 userSettings:
   googleProjectId: &gcpProjectId ${gcpProjectId} 
   dbHost: &dbHost ${dbHost}

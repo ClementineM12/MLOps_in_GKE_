@@ -17,13 +17,14 @@ func createKubernetesResources(
 	k8sProvider *kubernetes.Provider,
 ) ([]pulumi.Resource, error) {
 
+	dependencies := []pulumi.Resource{}
 	_, err := createMLRunNamespace(ctx, projectConfig, k8sProvider)
 	if err != nil {
-		return []pulumi.Resource{}, err
+		return dependencies, err
 	}
-	dependencies, err := infracomponents.CreateInfraComponents(ctx, projectConfig, k8sProvider, infraComponents)
+	dependencies, err = infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
 	if err != nil {
-		return []pulumi.Resource{}, err
+		return dependencies, err
 	}
 
 	return dependencies, nil
@@ -38,7 +39,27 @@ func createMLRunNamespace(
 	resourceName := fmt.Sprintf("%s-mlrun-ns", projectConfig.ResourceNamePrefix)
 	return coreV1.NewNamespace(ctx, resourceName, &coreV1.NamespaceArgs{
 		Metadata: &metaV1.ObjectMetaArgs{
-			Name: pulumi.String("mlrun"),
+			Name: pulumi.String(namespace),
 		},
 	}, pulumi.Provider(k8sProvider))
 }
+
+// createGcpCredentialsSecret creates a generic Kubernetes secret
+// that holds the GCP service account key JSON (used by Kaniko for repository creation).
+// func createGcpCredentialsSecret(
+// 	ctx *pulumi.Context,
+// 	serviceAccountKey pulumi.StringOutput,
+// 	dependsOn []pulumi.Resource,
+// ) error {
+// 	_, err := coreV1.NewSecret(ctx, serviceAccountSecretName, &coreV1.SecretArgs{
+// 		Metadata: &metaV1.ObjectMetaArgs{
+// 			Namespace: pulumi.String(namespace),
+// 			Name:      pulumi.String(serviceAccountSecretName),
+// 		},
+// 		// The key "credentials" holds the JSON content.
+// 		StringData: pulumi.StringMap{
+// 			"credentials": serviceAccountKey,
+// 		},
+// 	}, pulumi.DependsOn(dependsOn))
+// 	return err
+// }

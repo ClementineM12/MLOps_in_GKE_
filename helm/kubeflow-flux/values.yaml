@@ -1,6 +1,8 @@
 # Default values for the Kubeflow Helm chart.
 # This file contains configuration options for all components.
 
+# Helm Chart: https://github.com/kubeflow/manifests/tree/v1.9.1
+
 global:
   # The target tag of the Kubeflow manifests
   targetRevision: "v1.9.1"

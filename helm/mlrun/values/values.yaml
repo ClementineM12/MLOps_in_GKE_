@@ -1,11 +1,43 @@
-# -- https://github.com/v3io/helm-charts/blob/development/stable/mlrun-kit/values.yaml
+# Helm Chart: https://github.com/mlrun/ce/blob/development/charts/mlrun-ce/values.yaml
+
+userSettings: 
+  bucketName: &bucketName ${gcsbucket}
+  hostName: &hostName ${hostName}
+  registryURL: &registryURL ${registryURL} 
+  registrySecretName: &registrySecretName ${registrySecretName}
+  whitelistedIPs: &whitelistedIPs ${whitelistedIPs}
+
+global:
+  externalHostAddress: *hostName
+  registry:
+    url: *registryURL
+    secretName: *registrySecretName
+
 jupyterNotebook:
   persistence:
-    enabled: true
     size: "30Gi"
 
 minio:
   persistence:
-    enabled: true
     size: 30Gi
+
+mlrun: 
+  ui: 
+    ingress: 
+      enabled: true
+      ingressClassName: "nginx"
+      host: *hostName
+      tls:
+        enabled: true
+        secretName: flyte-secret-tls
+      annotations:
+        kubernetes.io/ingress.class: nginx
+        ingress.kubernetes.io/rewrite-target: /
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        cert-manager.io/issuer: "letsencrypt-production"
+        acme.cert-manager.io/http01-edit-in-place: "true"
+        nginx.ingress.kubernetes.io/whitelist-source-range: *whitelistedIPs
+      separateGrpcIngress: true
+      separateGrpcIngressAnnotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
 

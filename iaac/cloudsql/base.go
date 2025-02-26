@@ -19,10 +19,10 @@ func DeployCloudSQL(
 	if err != nil {
 		return nil, err
 	}
-
 	cloudSQL, err := createCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork, dependencies)
 	if err != nil {
 		return nil, err
 	}
+
 	return cloudSQL, nil
 }

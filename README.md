@@ -46,7 +46,7 @@ Depending on the tool to deploy we set `project:target` configuration field in t
 
 **Versions**
 
-* Kubeflow `v1.9.0`
+* Kubeflow `v1.9.1`
 * MLRun `v1.7.2`
 * Flyte  [flyte-core] `v1.5.0`
 

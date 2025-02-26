@@ -20,6 +20,8 @@ func createServiceAccounts(
 
 	serviceAccounts := make(map[string]ServiceAccountInfo)
 
+	var serviceAccountKey *serviceaccount.Key
+
 	for roleName, iamInfo := range IAM {
 		if !iamInfo.CreateServiceAccount {
 			continue
@@ -29,10 +31,16 @@ func createServiceAccounts(
 		IAMServiceAccount, err := serviceaccount.NewAccount(ctx, resourceName, &serviceaccount.AccountArgs{
 			AccountId:   pulumi.String(fmt.Sprintf("%s-%s", iamInfo.ResourceNamePrefix, roleName)),
 			Project:     pulumi.String(projectConfig.ProjectId),
-			DisplayName: pulumi.String(iamInfo.DisplayName), // TO CHECK IF WORKS
+			DisplayName: pulumi.String(iamInfo.DisplayName),
 		})
 		if err != nil {
 			return nil, err
+		}
+		if iamInfo.CreateKey {
+			serviceAccountKey, err = createServiceAccountKey(ctx, IAMServiceAccount)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if IAMServiceAccount == nil {
 			ctx.Log.Error("IAMServiceAccount is nil", nil)
@@ -56,9 +64,26 @@ func createServiceAccounts(
 			ServiceAccount: IAMServiceAccount,
 			Member:         member,
 			Email:          email,
+			Key:            serviceAccountKey,
 		}
 	}
 	return serviceAccounts, nil
+}
+
+// createServiceAccountKey creates a key for the provided service account.
+// The key's JSON will later be used as the "password" for registry authentication.
+func createServiceAccountKey(
+	ctx *pulumi.Context,
+	sa *serviceaccount.Account,
+) (*serviceaccount.Key, error) {
+
+	saKey, err := serviceaccount.NewKey(ctx, "mlrun-service-account-key", &serviceaccount.KeyArgs{
+		ServiceAccountId: sa.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return saKey, nil
 }
 
 // CreateIAMRole creates a Custom IAM Role that will be used by the Kubernetes Deployment.
@@ -83,7 +108,7 @@ func createIAMRole(
 }
 
 // CreateIAMServiceRoleBinding creates the IAM Role Binding to link to the Service Account to Custom Role.
-func createIAMServiceRoleBinding(
+func createIAMServiceCustomRoleBinding(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	roleName string,
@@ -102,17 +127,15 @@ func createIAMServiceRoleBinding(
 func createIAMRoleBinding(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	iamInfo *IAM,
+	roleBinding string,
 	roleName string,
 	serviceAccounts map[string]ServiceAccountInfo,
 ) (*projects.IAMBinding, error) {
 
-	roleBind := iamInfo.RoleBinding
-
-	resourceName := fmt.Sprintf("%s-iam-role-binding-%s", projectConfig.ResourceNamePrefix, transformRole(roleBind))
+	resourceName := fmt.Sprintf("%s-iam-role-binding-%s", projectConfig.ResourceNamePrefix, transformRole(roleBinding))
 	return projects.NewIAMBinding(ctx, resourceName, &projects.IAMBindingArgs{
 		Project: pulumi.String(projectConfig.ProjectId),
-		Role:    pulumi.String(roleBind),
+		Role:    pulumi.String(roleBinding),
 		Members: serviceAccounts[roleName].Member,
 	})
 }

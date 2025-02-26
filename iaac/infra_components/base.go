@@ -11,6 +11,7 @@ import (
 func CreateInfraComponents(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
+	namespace string,
 	k8sProvider *kubernetes.Provider,
 	infraComponents InfraComponents,
 ) ([]pulumi.Resource, error) {
@@ -30,7 +31,12 @@ func CreateInfraComponents(
 		dependencies = append(dependencies, nginxController)
 	}
 	if infraComponents.CertManager {
-		certManagerIssuer, err = deployCertManager(ctx, projectConfig, k8sProvider)
+		// If nginxController exists, add it as a dependency.
+		var opts []pulumi.ResourceOption
+		if nginxController != nil {
+			opts = append(opts, pulumi.DependsOn([]pulumi.Resource{nginxController}))
+		}
+		certManagerIssuer, err = deployCertManager(ctx, projectConfig, namespace, k8sProvider, opts...)
 		if err != nil {
 			return nil, err
 		}

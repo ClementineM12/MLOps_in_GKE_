@@ -48,9 +48,11 @@ func createIAMBindings(
 
 		roleIDResourceNameSuffix := strings.ReplaceAll(roleName, "-", "_")
 
-		if iamInfo.RoleBinding != "" && iamInfo.CreateServiceAccount {
-			if _, err := createIAMRoleBinding(ctx, projectConfig, &iamInfo, roleName, serviceAccounts); err != nil {
-				return err
+		if iamInfo.RoleBindings != nil && iamInfo.CreateServiceAccount {
+			for _, roleBinding := range iamInfo.RoleBindings {
+				if _, err := createIAMRoleBinding(ctx, projectConfig, roleBinding, roleName, serviceAccounts); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -62,7 +64,7 @@ func createIAMBindings(
 		if err != nil {
 			return err
 		}
-		if _, err = createIAMServiceRoleBinding(ctx, projectConfig, roleName, serviceAccounts, newRole); err != nil {
+		if _, err = createIAMServiceCustomRoleBinding(ctx, projectConfig, roleName, serviceAccounts, newRole); err != nil {
 			return err
 		}
 

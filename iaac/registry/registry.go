@@ -12,6 +12,7 @@ import (
 func createRegistry(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
+	registryName string,
 	opts ...pulumi.ResourceOption,
 ) (*artifactregistry.Repository, error) {
 
@@ -22,11 +23,14 @@ func createRegistry(
 		region = "europe"
 	}
 
+	if registryName == "" {
+		registryName = "artifacts"
+	}
 	resourceName := fmt.Sprintf("%s-artifacts-registry", projectConfig.ResourceNamePrefix)
 	registry, err := artifactregistry.NewRepository(ctx, resourceName, &artifactregistry.RepositoryArgs{
 		Project:      pulumi.String(projectConfig.ProjectId),
 		Location:     pulumi.String(region),
-		RepositoryId: pulumi.String("artifacts"),
+		RepositoryId: pulumi.String(registryName),
 		Format:       pulumi.String("DOCKER"), // Artifact Registry supports OCI Helm Charts
 	}, opts...)
 

@@ -89,7 +89,7 @@ var FlyteIAM = map[string]iam.IAM{
 		},
 		CreateRole:           true,
 		CreateServiceAccount: true,
-		RoleBinding:          "roles/artifactregistry.reader",
+		RoleBindings:         []string{"roles/artifactregistry.reader"},
 		WorkloadIdentityBinding: []string{
 			"flyte/flyteworkers",
 		},
@@ -98,7 +98,7 @@ var FlyteIAM = map[string]iam.IAM{
 	"artifactregistry-writer": {
 		CreateRole:           false,
 		CreateServiceAccount: true,
-		RoleBinding:          "roles/artifactregistry.writer",
+		RoleBindings:         []string{"roles/artifactregistry.writer"},
 		ResourceNamePrefix:   "flyte",
 	},
 }

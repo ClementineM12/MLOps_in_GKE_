@@ -3,6 +3,8 @@ package mlrun
 import (
 	"fmt"
 	"mlops/global"
+	"mlops/iam"
+	"mlops/registry"
 	"mlops/storage"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
@@ -12,24 +14,51 @@ import (
 )
 
 var (
-	deploy = true
+	application      = "mlrun"
+	namespace        = "mlrun"
+	deploy           = true
+	helmChart        = "mlrun-ce"
+	helmChartVersion = "v1.7.2"
+	helmChartRepo    = "https://mlrun.github.io/ce"
 )
 
-func CreateFlyteResources(
+func CreateMLRunResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpNetwork *compute.Network,
 ) error {
+	registryEndpoint := fmt.Sprintf("%s-docker.pkg.dev", cloudRegion.Region)
+	registryURL := fmt.Sprintf("%s/%s/%s", registryEndpoint, projectConfig.ProjectId, registryName)
 
-	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, "mlrun-project-bucket-01")
+	registry, err := registry.CreateArtifactRegistry(ctx, projectConfig, registryName, pulumi.DependsOn([]pulumi.Resource{}))
+	if err != nil {
+		return err
+	}
+	serviceAccounts, err := iam.CreateIAMResources(ctx, projectConfig, MLRunIAM)
+	if err != nil {
+		return err
+	}
+	if err := createDockerRegistrySecret(ctx, projectConfig, serviceAccounts, registry, registryEndpoint); err != nil {
+		return err
+	}
+
+	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
 	dependencies, err := createKubernetesResources(ctx, projectConfig, k8sProvider)
 	if err != nil {
 		return err
 	}
+
+	dependencies = append(dependencies, gcsBucket)
+	MLRunConfig := MLRunConfig{
+		registryEndpoint:   registryEndpoint,
+		registryURL:        registryURL,
+		gcsBucketName:      bucketName,
+		registrySecretName: registrySecretName,
+	}
 	if deploy {
-		if err = deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket, dependencies); err != nil {
+		if err = deployMLRun(ctx, projectConfig, k8sProvider, MLRunConfig, dependencies); err != nil {
 			return err
 		}
 	}
@@ -37,18 +66,24 @@ func CreateFlyteResources(
 	return nil
 }
 
-func deployFlyteCore(
+func deployMLRun(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
-	gcsBucket pulumi.StringInput,
+	MLRunConfig MLRunConfig,
 	dependencies []pulumi.Resource,
 ) error {
 
 	// Path to the values.yaml file.
 	valuesFilePath := "../helm/mlrun/values/values.yaml"
 	// Build the replacement map using resolved strings.
-	userSettings := map[string]interface{}{}
+	userSettings := map[string]interface{}{
+		"gcsbucket":          MLRunConfig.gcsBucketName,
+		"hostName":           fmt.Sprintf("%s.%s", application, projectConfig.Domain),
+		"registryURL":        MLRunConfig.registryURL,
+		"registrySecretName": MLRunConfig.registrySecretName,
+		"whitelistedIPs":     projectConfig.WhitelistedIPs,
+	}
 
 	// Get the substituted values map.
 	valuesMap, err := global.GetValues(valuesFilePath, userSettings)
@@ -59,14 +94,13 @@ func deployFlyteCore(
 	// Deploy the Helm release for Flyte-Core.
 	resourceName := fmt.Sprintf("%s-mlrun", projectConfig.ResourceNamePrefix)
 	_, err = helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
-		Name:            pulumi.String("mlrun"),
-		Namespace:       pulumi.String("mlrun"),
-		CreateNamespace: pulumi.Bool(true),
-		Version:         pulumi.String("v1.7.2"),
+		Name:      pulumi.String(application),
+		Namespace: pulumi.String(namespace),
+		Version:   pulumi.String(helmChartVersion),
 		RepositoryOpts: &helm.RepositoryOptsArgs{
-			Repo: pulumi.String("https://mlrun.github.io/ce"),
+			Repo: pulumi.String(helmChartRepo),
 		},
-		Chart:  pulumi.String("mlrun"),
+		Chart:  pulumi.String(helmChart),
 		Values: valuesMap,
 	},
 		pulumi.DependsOn(dependencies),

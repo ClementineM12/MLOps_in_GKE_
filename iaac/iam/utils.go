@@ -35,7 +35,7 @@ func (iam IAM) Validate(ctx *pulumi.Context) error {
 	}
 
 	// If RoleBinding is not empty then CreateServiceAccount must be true.
-	if iam.RoleBinding != "" && !iam.CreateServiceAccount {
+	if iam.RoleBindings != nil && !iam.CreateServiceAccount {
 		err := fmt.Errorf("field `CreateServiceAccount` must be true if `RoleBinding` is provided")
 		ctx.Log.Error(err.Error(), nil)
 		return err

@@ -14,8 +14,12 @@ import (
 )
 
 var (
-	application = "flyte"
-	deploy      = true
+	application      = "flyte"
+	namespace        = "flyte"
+	deploy           = true
+	helmChart        = "flyte-core"
+	helmChartVersion = "v1.15.0"
+	helmChartRepo    = "https://flyteorg.github.io/flyte"
 )
 
 func CreateFlyteResources(
@@ -40,7 +44,7 @@ func CreateFlyteResources(
 		return err
 	}
 	if deploy {
-		if err = deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket, serviceAccounts, dependencies); err != nil {
+		if err = deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket.Name, serviceAccounts, dependencies); err != nil {
 			return err
 		}
 	}
@@ -104,14 +108,13 @@ func deployFlyteCore(
 		// Deploy the Helm release for Flyte-Core.
 		resourceName := fmt.Sprintf("%s-flyte-core", projectConfig.ResourceNamePrefix)
 		_, err = helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
-			Name:            pulumi.String("flyte-core"),
-			Namespace:       pulumi.String("flyte"),
-			CreateNamespace: pulumi.Bool(true),
-			Version:         pulumi.String("v1.15.0"),
+			Name:      pulumi.String(application),
+			Namespace: pulumi.String(namespace),
+			Version:   pulumi.String(helmChartVersion),
 			RepositoryOpts: &helm.RepositoryOptsArgs{
-				Repo: pulumi.String("https://flyteorg.github.io/flyte"),
+				Repo: pulumi.String(helmChartRepo),
 			},
-			Chart:  pulumi.String("flyte-core"),
+			Chart:  pulumi.String(helmChart),
 			Values: valuesMap,
 		},
 			pulumi.DependsOn(dependencies),

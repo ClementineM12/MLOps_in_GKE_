@@ -8,6 +8,7 @@ import (
 	"mlops/flyte"
 	"mlops/gke"
 	"mlops/global"
+	"mlops/mlrun"
 	"mlops/registry"
 	"mlops/storage"
 	"mlops/vpc"
@@ -22,23 +23,22 @@ func main() {
 		projectConfig := global.GenerateProjectConfig(ctx)
 		gcpDependencies := global.EnableGCPServices(ctx, projectConfig)
 
-		var gcsBucket pulumi.StringOutput
 		if config.GetBool(ctx, "storage:create") {
 			bucketName := config.Get(ctx, "storage:name")
-			gcsBucket = storage.CreateObjectStorage(ctx, projectConfig, bucketName)
+			storage.CreateObjectStorage(ctx, projectConfig, bucketName)
 		}
 		if config.GetBool(ctx, "ar:create") {
-			registry.CreateArtifactRegistry(ctx, projectConfig, pulumi.DependsOn(gcpDependencies))
+			registry.CreateArtifactRegistry(ctx, projectConfig, "", pulumi.DependsOn(gcpDependencies))
 		}
 
-		if err := CreateProjectResources(ctx, projectConfig, gcsBucket); err != nil {
+		if err := CreateProjectResources(ctx, projectConfig); err != nil {
 			return fmt.Errorf("failed to create Project resources end-to-end: %w", err)
 		}
 		return nil
 	})
 }
 
-func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig, gcsBucket pulumi.StringOutput) error {
+func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectConfig) error {
 	// -------------------------- VPC -----------------------------
 	gcpNetwork, err := vpc.CreateVPCResources(ctx, projectConfig)
 	if err != nil {
@@ -88,6 +88,11 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 		}
 		if config.Get(ctx, "project:target") == "flyte" {
 			if err = flyte.CreateFlyteResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork); err != nil {
+				return err
+			}
+		}
+		if config.Get(ctx, "project:target") == "mlrun" {
+			if err = mlrun.CreateMLRunResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork); err != nil {
 				return err
 			}
 		}

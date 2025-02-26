@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mlops/global"
 
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/artifactregistry"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -12,14 +13,15 @@ import (
 func CreateArtifactRegistry(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
+	registryName string,
 	opts ...pulumi.ResourceOption,
-) error {
+) (*artifactregistry.Repository, error) {
 
 	githubRepo := config.Get(ctx, "ar:githubRepo")
 
-	registry, err := createRegistry(ctx, projectConfig, opts...)
+	registry, err := createRegistry(ctx, projectConfig, registryName, opts...)
 	if err != nil {
-		return fmt.Errorf("failed to create Artifact Registry: %w", err)
+		return nil, fmt.Errorf("failed to create Artifact Registry: %w", err)
 	}
 
 	registry.ID().ApplyT(func(_ string) error {
@@ -62,5 +64,5 @@ func CreateArtifactRegistry(
 		ctx.Export("artifactRegistryURL", registry.RepositoryId)
 		return nil
 	})
-	return nil
+	return registry, nil
 }
