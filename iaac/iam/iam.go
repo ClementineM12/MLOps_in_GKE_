@@ -37,7 +37,7 @@ func createServiceAccounts(
 			return nil, err
 		}
 		if iamInfo.CreateKey {
-			serviceAccountKey, err = createServiceAccountKey(ctx, IAMServiceAccount)
+			serviceAccountKey, err = createServiceAccountKey(ctx, IAMServiceAccount, resourceName)
 			if err != nil {
 				return nil, err
 			}
@@ -75,9 +75,11 @@ func createServiceAccounts(
 func createServiceAccountKey(
 	ctx *pulumi.Context,
 	sa *serviceaccount.Account,
+	serviceAccountResourceName string,
 ) (*serviceaccount.Key, error) {
 
-	saKey, err := serviceaccount.NewKey(ctx, "mlrun-service-account-key", &serviceaccount.KeyArgs{
+	resourceName := fmt.Sprintf("%s-key", serviceAccountResourceName)
+	saKey, err := serviceaccount.NewKey(ctx, resourceName, &serviceaccount.KeyArgs{
 		ServiceAccountId: sa.Name,
 	})
 	if err != nil {
@@ -150,7 +152,7 @@ func createIAMPolicyMembers(
 	for roleName, iamInfo := range IAM {
 		if iamInfo.CreateMember {
 			roles := iamInfo.Roles
-			accountId := fmt.Sprintf("%s-%s", iamInfo.ResourceNamePrefix, roleName)
+			accountId := fmt.Sprintf("%s-%s-%s", projectConfig.ResourceNamePrefix, iamInfo.ResourceNamePrefix, roleName)
 
 			for _, role := range roles {
 				sanitizedRoleName := strings.ReplaceAll(strings.Split(role, "/")[1], ".", "-")

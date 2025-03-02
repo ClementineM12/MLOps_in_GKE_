@@ -2,15 +2,9 @@ package flyte
 
 import (
 	"mlops/iam"
-	infracomponents "mlops/infra_components"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
-
-var infraComponents = infracomponents.InfraComponents{
-	CertManager:  true,
-	NginxIngress: true,
-}
 
 var FlyteIAM = map[string]iam.IAM{
 	"flyteadmin": {

@@ -14,6 +14,9 @@ func GenerateProjectConfig(
 
 	domain := config.Get(ctx, "project:domain")
 	whitelistedIPs := config.Get(ctx, "project:whitelistedIPs")
+	if whitelistedIPs == "" {
+		whitelistedIPs = "0.0.0.0/0"
+	}
 
 	// Validate
 	validateArtifactRegistryConfig(ctx)

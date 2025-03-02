@@ -6,6 +6,8 @@ userSettings:
   registryURL: &registryURL ${registryURL} 
   registrySecretName: &registrySecretName ${registrySecretName}
   whitelistedIPs: &whitelistedIPs ${whitelistedIPs}
+  minioPassword: &minioRootPassword ${minioRootPassword}
+  minioMLRunBucket: &minioMLRunBucket minio
 
 global:
   externalHostAddress: *hostName
@@ -34,9 +36,40 @@ jupyterNotebook:
         secretName: mlrun-secret-tls
 
 minio:
+  rootUser: minio
+  rootPassword: *minioRootPassword
+  ingress: 
+    enabled: false
   persistence:
     size: 30Gi
 
-# mlrun: 
+mlrun: 
+  ui:
+    ingress:
+      enabled: false
 
+nuclio:
+  controller:
+    enabled: true
+  dashboard:
+    enabled: true
+    ingress:
+      enabled: false
 
+spark-operator:
+  enabled: true
+
+pipelines:
+  enabled: true
+  minio:
+    enabled: true
+    secretKey: *minioRootPassword
+    bucket: *minioMLRunBucket
+
+kube-prometheus-stack:
+  enabled: true
+  alertmanager:
+    enabled: false
+  grafana:
+    ingress:
+      enabled: false

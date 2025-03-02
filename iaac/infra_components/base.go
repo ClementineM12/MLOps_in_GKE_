@@ -36,7 +36,7 @@ func CreateInfraComponents(
 		if nginxController != nil {
 			opts = append(opts, pulumi.DependsOn([]pulumi.Resource{nginxController}))
 		}
-		certManagerIssuer, err = deployCertManager(ctx, projectConfig, namespace, k8sProvider, opts...)
+		certManagerIssuer, err = deployCertManager(ctx, projectConfig, namespace, k8sProvider, infraComponents, opts...)
 		if err != nil {
 			return nil, err
 		}

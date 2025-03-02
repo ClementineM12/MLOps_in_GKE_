@@ -5,6 +5,7 @@ import (
 	"mlops/cloudsql"
 	"mlops/global"
 	"mlops/iam"
+	infracomponents "mlops/infra_components"
 	"mlops/storage"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
@@ -29,7 +30,12 @@ func CreateFlyteResources(
 	k8sProvider *kubernetes.Provider,
 	gcpNetwork *compute.Network,
 ) error {
-
+	domain := fmt.Sprintf("%s.%s", application, projectConfig.Domain)
+	infraComponents := infracomponents.InfraComponents{
+		CertManager:  true,
+		NginxIngress: true,
+		Domain:       domain,
+	}
 	serviceAccounts, err := iam.CreateIAMResources(ctx, projectConfig, FlyteIAM)
 	if err != nil {
 		return err
@@ -39,12 +45,12 @@ func CreateFlyteResources(
 	if err != nil {
 		return err
 	}
-	dependencies, err := createKubernetesResources(ctx, projectConfig, k8sProvider, cloudSQL)
+	dependencies, err := createKubernetesResources(ctx, projectConfig, infraComponents, k8sProvider, cloudSQL)
 	if err != nil {
 		return err
 	}
 	if deploy {
-		if err = deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket.Name, serviceAccounts, dependencies); err != nil {
+		if err = deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket.Name, domain, serviceAccounts, dependencies); err != nil {
 			return err
 		}
 	}
@@ -58,6 +64,7 @@ func deployFlyteCore(
 	projectConfig global.ProjectConfig,
 	k8sProvider *kubernetes.Provider,
 	gcsBucket pulumi.StringInput,
+	domain string,
 	serviceAccounts map[string]iam.ServiceAccountInfo,
 	dependencies []pulumi.Resource,
 ) error {
@@ -90,7 +97,7 @@ func deployFlyteCore(
 			"dbHost":                    dbHost,
 			"dbPassword":                dbPassword,
 			"gcsbucket":                 gcsBucket,
-			"hostName":                  fmt.Sprintf("%s.%s", application, projectConfig.Domain),
+			"hostName":                  domain,
 			"AdminServiceAccount":       adminEmail,
 			"PropellerServiceAccount":   propellerEmail,
 			"SchedulerServiceAccount":   schedulerEmail,

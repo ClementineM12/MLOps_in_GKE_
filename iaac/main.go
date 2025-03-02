@@ -81,21 +81,24 @@ func CreateProjectResources(ctx *pulumi.Context, projectConfig global.ProjectCon
 			}
 		}
 
-		if config.Get(ctx, "project:target") == "kubeflow" {
-			if err = flux.DeployFlux(ctx, k8sProvider, NodePool); err != nil {
-				return err
+		NodePool.ID().ApplyT(func(_ string) error {
+			if config.Get(ctx, "project:target") == "kubeflow" {
+				if err = flux.DeployFlux(ctx, k8sProvider); err != nil {
+					return err
+				}
 			}
-		}
-		if config.Get(ctx, "project:target") == "flyte" {
-			if err = flyte.CreateFlyteResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork); err != nil {
-				return err
+			if config.Get(ctx, "project:target") == "flyte" {
+				if err = flyte.CreateFlyteResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork); err != nil {
+					return err
+				}
 			}
-		}
-		if config.Get(ctx, "project:target") == "mlrun" {
-			if err = mlrun.CreateMLRunResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork); err != nil {
-				return err
+			if config.Get(ctx, "project:target") == "mlrun" {
+				if err = mlrun.CreateMLRunResources(ctx, projectConfig, &cloudRegion, k8sProvider, gcpNetwork); err != nil {
+					return err
+				}
 			}
-		}
+			return nil
+		})
 	}
 	return nil
 }

@@ -4,24 +4,34 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
 
-func DeployFlux(ctx *pulumi.Context, k8sProvider *kubernetes.Provider, NodePool *container.NodePool) error {
+var (
+	namespace        = "flux-system"
+	helmChart        = "flux2"
+	helmChartVersion = "2.15.0"
+	helmChartRepo    = "https://fluxcd-community.github.io/helm-charts"
+)
+
+func DeployFlux(
+	ctx *pulumi.Context,
+	k8sProvider *kubernetes.Provider,
+) error {
+
 	githubRepo := config.Get(ctx, "ar:githubRepo")
 
 	// Deploy FluxCD using Helm
 	fluxHelmRelease, err := helm.NewRelease(ctx, "flux", &helm.ReleaseArgs{
-		Chart:           pulumi.String("flux2"),
-		Version:         pulumi.String("2.10.0"), // Update to the latest version
-		Namespace:       pulumi.String("flux-system"),
+		Chart:           pulumi.String(helmChart),
+		Version:         pulumi.String(helmChartVersion),
+		Namespace:       pulumi.String(namespace),
 		CreateNamespace: pulumi.Bool(true),
 		RepositoryOpts: &helm.RepositoryOptsArgs{
-			Repo: pulumi.String("https://fluxcd-community.github.io/helm-charts"),
+			Repo: pulumi.String(helmChartRepo),
 		},
 		Values: pulumi.Map{
 			"gitRepository": pulumi.Map{
@@ -32,9 +42,7 @@ func DeployFlux(ctx *pulumi.Context, k8sProvider *kubernetes.Provider, NodePool 
 			},
 		},
 	},
-		pulumi.Provider(k8sProvider),
-		pulumi.DependsOn([]pulumi.Resource{NodePool}),
-	)
+		pulumi.Provider(k8sProvider))
 	if err != nil {
 		return err
 	}

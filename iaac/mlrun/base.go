@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mlops/global"
 	"mlops/iam"
+	infracomponents "mlops/infra_components"
 	"mlops/registry"
 	"mlops/storage"
 
@@ -15,10 +16,11 @@ import (
 
 var (
 	application      = "mlrun"
+	domainPrefix     = "mlrun"
 	namespace        = "mlrun"
 	deploy           = true
 	helmChart        = "mlrun-ce"
-	helmChartVersion = "v1.7.2"
+	helmChartVersion = "0.7.3"
 	helmChartRepo    = "https://mlrun.github.io/ce"
 )
 
@@ -31,6 +33,15 @@ func CreateMLRunResources(
 ) error {
 	registryEndpoint := fmt.Sprintf("%s-docker.pkg.dev", cloudRegion.Region)
 	registryURL := fmt.Sprintf("%s/%s/%s", registryEndpoint, projectConfig.ProjectId, registryName)
+	domain := fmt.Sprintf("%s.%s", domainPrefix, projectConfig.Domain)
+
+	infraComponents := infracomponents.InfraComponents{
+		CertManager:       true,
+		NginxIngress:      true,
+		CertManagerIssuer: true,
+		Certificate:       true,
+		Domain:            domain,
+	}
 
 	registry, err := registry.CreateArtifactRegistry(ctx, projectConfig, registryName, pulumi.DependsOn([]pulumi.Resource{}))
 	if err != nil {
@@ -40,12 +51,12 @@ func CreateMLRunResources(
 	if err != nil {
 		return err
 	}
-	if err := createDockerRegistrySecret(ctx, projectConfig, serviceAccounts, registry, registryEndpoint); err != nil {
+	if err := createDockerRegistrySecret(ctx, projectConfig, serviceAccounts, registry, registryEndpoint, k8sProvider); err != nil {
 		return err
 	}
 
 	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
-	dependencies, err := createKubernetesResources(ctx, projectConfig, k8sProvider)
+	dependencies, err := createKubernetesResources(ctx, projectConfig, infraComponents, k8sProvider)
 	if err != nil {
 		return err
 	}
@@ -56,11 +67,13 @@ func CreateMLRunResources(
 		registryURL:        registryURL,
 		gcsBucketName:      bucketName,
 		registrySecretName: registrySecretName,
+		domain:             domain,
 	}
 	if deploy {
 		if err = deployMLRun(ctx, projectConfig, k8sProvider, MLRunConfig, dependencies); err != nil {
 			return err
 		}
+		deployIngress(ctx, projectConfig)
 	}
 
 	return nil
@@ -79,10 +92,11 @@ func deployMLRun(
 	// Build the replacement map using resolved strings.
 	userSettings := map[string]interface{}{
 		"gcsbucket":          MLRunConfig.gcsBucketName,
-		"hostName":           fmt.Sprintf("%s.%s", application, projectConfig.Domain),
+		"hostName":           MLRunConfig.domain,
 		"registryURL":        MLRunConfig.registryURL,
 		"registrySecretName": MLRunConfig.registrySecretName,
 		"whitelistedIPs":     projectConfig.WhitelistedIPs,
+		"minioRootPassword":  "minio123",
 	}
 
 	// Get the substituted values map.
@@ -100,8 +114,9 @@ func deployMLRun(
 		RepositoryOpts: &helm.RepositoryOptsArgs{
 			Repo: pulumi.String(helmChartRepo),
 		},
-		Chart:  pulumi.String(helmChart),
-		Values: valuesMap,
+		Chart:   pulumi.String(helmChart),
+		Values:  valuesMap,
+		Timeout: pulumi.Int(400),
 	},
 		pulumi.DependsOn(dependencies),
 		pulumi.Provider(k8sProvider),

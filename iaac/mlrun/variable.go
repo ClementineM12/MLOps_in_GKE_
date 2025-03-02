@@ -2,15 +2,9 @@ package mlrun
 
 import (
 	"mlops/iam"
-	infracomponents "mlops/infra_components"
 )
 
 var (
-	infraComponents = infracomponents.InfraComponents{
-		CertManager:  true,
-		NginxIngress: true,
-	}
-
 	registrySecretName = "gcr-registry-credentials"
 	// serviceAccountSecretName = "mlrun-sa-credentials"
 	bucketName   = "mlrun-project-bucket-01"

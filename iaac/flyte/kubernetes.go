@@ -15,6 +15,7 @@ import (
 func createKubernetesResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
+	infraComponents infracomponents.InfraComponents,
 	k8sProvider *kubernetes.Provider,
 	cloudSQL *sql.DatabaseInstance,
 ) ([]pulumi.Resource, error) {

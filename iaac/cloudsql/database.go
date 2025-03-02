@@ -41,10 +41,11 @@ func createCloudSQL(
 		return nil, err
 	}
 
-	if _, err = createDatabase(ctx, projectConfig, dbInstance); err != nil {
+	database, err := createDatabase(ctx, projectConfig, dbInstance)
+	if err != nil {
 		return nil, err
 	}
-	randomPassword, err := createUser(ctx, projectConfig, dbInstance)
+	randomPassword, err := createUser(ctx, projectConfig, dbInstance, database)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +77,7 @@ func createUser(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	dbInstance *sql.DatabaseInstance,
+	database *sql.Database,
 ) (*random.RandomPassword, error) {
 
 	username := projectConfig.CloudSQL.User
@@ -97,7 +99,7 @@ func createUser(
 		Instance: dbInstance.ID(),
 		Name:     pulumi.String(username),
 		Password: randomPassword.Result,
-	}); err != nil {
+	}, pulumi.DependsOn([]pulumi.Resource{database, dbInstance})); err != nil {
 		return nil, err
 	}
 	return randomPassword, nil

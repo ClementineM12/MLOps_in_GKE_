@@ -7,6 +7,7 @@ import (
 	"mlops/iam"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/artifactregistry"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	coreV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	metaV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -21,6 +22,7 @@ func createDockerRegistrySecret(
 	serviceAccounts map[string]iam.ServiceAccountInfo,
 	registry *artifactregistry.Repository,
 	registryURL string,
+	k8sProvider *kubernetes.Provider,
 ) error {
 	// Retrieve the service account info for mlrun.
 	serviceAccount := serviceAccounts["mlrun"]
@@ -57,7 +59,8 @@ func createDockerRegistrySecret(
 	}).(pulumi.StringOutput)
 
 	// Create the Kubernetes secret in the "mlrun" namespace.
-	_, err := coreV1.NewSecret(ctx, "mlrun-gcr-registry-credentials", &coreV1.SecretArgs{
+	resourceName := fmt.Sprintf("%s-mlrun-gcr-registry-credentials", projectConfig.ResourceNamePrefix)
+	_, err := coreV1.NewSecret(ctx, resourceName, &coreV1.SecretArgs{
 		Metadata: &metaV1.ObjectMetaArgs{
 			Namespace: pulumi.String(namespace),
 			Name:      pulumi.String(registrySecretName),
@@ -66,7 +69,9 @@ func createDockerRegistrySecret(
 		StringData: pulumi.StringMap{
 			".dockerconfigjson": dockerConfigJson,
 		},
-	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}))
+	},
+		pulumi.Provider(k8sProvider),
+		pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}))
 	if err != nil {
 		return fmt.Errorf("error creating Kubernetes secret: %w", err)
 	}
