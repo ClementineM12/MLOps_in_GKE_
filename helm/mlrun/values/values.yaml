@@ -22,12 +22,13 @@ jupyterNotebook:
     enabled: true
     annotations:
       kubernetes.io/ingress.class: nginx
-      ingress.kubernetes.io/rewrite-target: /
+      # ingress.kubernetes.io/rewrite-target: /
+      nginx.ingress.kubernetes.io/rewrite-target: /
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       cert-manager.io/issuer: "letsencrypt-production"
-      acme.cert-manager.io/http01-edit-in-place: "true"
+      acme.cert-manager.io/http01-edit-in-place: "true" 
       nginx.ingress.kubernetes.io/whitelist-source-range: *whitelistedIPs
-    ingressClassName: nginx
+    # ingressClassName: nginx
     hosts:
       - host: *hostName
         paths: []
@@ -36,10 +37,10 @@ jupyterNotebook:
         secretName: mlrun-secret-tls
 
 minio:
-  rootUser: minio
-  rootPassword: *minioRootPassword
-  ingress: 
-    enabled: false
+  # rootUser: minio
+  # rootPassword: *minioRootPassword
+  # ingress: 
+  #   enabled: false
   persistence:
     size: 30Gi
 
@@ -61,10 +62,10 @@ spark-operator:
 
 pipelines:
   enabled: true
-  minio:
-    enabled: true
-    secretKey: *minioRootPassword
-    bucket: *minioMLRunBucket
+  # minio:
+  #   enabled: true
+  #   secretKey: *minioRootPassword
+  #   bucket: *minioMLRunBucket
 
 kube-prometheus-stack:
   enabled: true
