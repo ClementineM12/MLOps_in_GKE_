@@ -3,15 +3,11 @@ config:
   gcp:region: europe-west8
 
   project:prefix: ml-02
-  project:target: flyte
+  project:target: mlrun
 
-  # project:domain: <provide_your_domain>
-  # project:email: <provide_your_email>
-  # project:whitelistedIPs: "<provide_your_IP>/32"
-
-  project:domain: "tedmosbyisajerk.cc"
-  project:email: christina.12mar@gmail.com
-  project:whitelistedIPs: "77.49.120.21/32"
+  project:domain: <provide_your_domain>
+  project:email: <provide_your_email>
+  project:whitelistedIPs: "<provide_your_IP>/32"
  
   vpc:regions: "009"
   vpc:loadBalancer: false
@@ -31,16 +27,14 @@ config:
 
   gke:loggingService: logging.googleapis.com/kubernetes
   gke:monitoringService: monitoring.googleapis.com/kubernetes
-  
-  storage:create: true
 
   ar:create: false 
   ar:githubSACreate: false
   ar:cdSACreate: false
   ar:githubRepo: "ClementineM12/MLOps"
 
-  cloudsql:create: true 
-  cloudsql:instancePrefixName: flyte
-  cloudsql:user: flyteadmin 
-  cloudsql:database: flyte
+  # cloudsql:create: true 
+  # cloudsql:instancePrefixName: flyte
+  # cloudsql:user: flyteadmin 
+  # cloudsql:database: flyte
   
