@@ -41,6 +41,7 @@ func CreateMLRunResources(
 		CertManagerIssuer: true,
 		Certificate:       true,
 		Domain:            domain,
+		Ingress:           false,
 	}
 
 	registry, err := registry.CreateArtifactRegistry(ctx, projectConfig, registryName, pulumi.DependsOn([]pulumi.Resource{}))
@@ -73,7 +74,6 @@ func CreateMLRunResources(
 		if err = deployMLRun(ctx, projectConfig, k8sProvider, MLRunConfig, dependencies); err != nil {
 			return err
 		}
-		deployIngress(ctx, projectConfig)
 	}
 
 	return nil
@@ -116,7 +116,7 @@ func deployMLRun(
 		},
 		Chart:   pulumi.String(helmChart),
 		Values:  valuesMap,
-		Timeout: pulumi.Int(400),
+		Timeout: pulumi.Int(600),
 	},
 		pulumi.DependsOn(dependencies),
 		pulumi.Provider(k8sProvider),

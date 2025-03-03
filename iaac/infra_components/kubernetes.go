@@ -5,36 +5,9 @@ import (
 	"mlops/global"
 
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
-
-func deployNginxController(
-	ctx *pulumi.Context,
-	projectConfig global.ProjectConfig,
-	k8sProvider *kubernetes.Provider,
-) (*helm.Release, error) {
-
-	resourceName := fmt.Sprintf("%s-nginx-controller", projectConfig.ResourceNamePrefix)
-	return helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
-		Name:            pulumi.String("ingress-nginx"),
-		Namespace:       pulumi.String(NginxControllerNamespace),
-		CreateNamespace: pulumi.Bool(true),
-		Chart:           pulumi.String(NginxControllerHelmChart),
-		Version:         pulumi.String(NginxControllerHelmChartVersion),
-		RepositoryOpts: &helm.RepositoryOptsArgs{
-			Repo: pulumi.String(NginxControllerHelmChartRepo),
-		},
-		Values: pulumi.Map{
-			"controller": pulumi.Map{
-				"service": pulumi.Map{
-					"externalTrafficPolicy": pulumi.String("Local"),
-				},
-			},
-		},
-	}, pulumi.Provider(k8sProvider))
-}
 
 // configGroup aggregates the YAML resources and creates a ConfigGroup for each.
 // The certManagerRelease parameter is used as a dependency so that the resources are created only after cert-manager is deployed.
@@ -70,43 +43,6 @@ func configGroup(
 		}
 	}
 	return nil
-}
-
-func deployCertManager(
-	ctx *pulumi.Context,
-	projectConfig global.ProjectConfig,
-	namespace string,
-	k8sProvider *kubernetes.Provider,
-	infraComponents InfraComponents,
-	opts ...pulumi.ResourceOption,
-) (*helm.Release, error) {
-
-	resourceName := fmt.Sprintf("%s-cert-manager", projectConfig.ResourceNamePrefix)
-	certManagerRelease, err := helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
-		Name:            pulumi.String("cert-manager"),
-		Namespace:       pulumi.String(CertManagerNamespace),
-		CreateNamespace: pulumi.Bool(true),
-		Chart:           pulumi.String(CertManagerHelmChart),
-		Version:         pulumi.String(CertManagerHelmChartVersion),
-		RepositoryOpts: &helm.RepositoryOptsArgs{
-			Repo: pulumi.String(CertManagerHelmChartRepo),
-		},
-		// Do not skip installing CRDs
-		SkipCrds: pulumi.Bool(false),
-		// Set the installCRDs value explicitly
-		Values: pulumi.Map{
-			"installCRDs": pulumi.Bool(true),
-		},
-		Timeout: pulumi.Int(300),
-	}, append(opts, pulumi.Provider(k8sProvider))...)
-
-	if err != nil {
-		return nil, err
-	}
-	if err := configGroup(ctx, projectConfig, namespace, certManagerRelease, k8sProvider, infraComponents); err != nil {
-		return nil, err
-	}
-	return certManagerRelease, nil
 }
 
 func certManagerIssuerYAML(

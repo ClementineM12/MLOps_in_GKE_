@@ -40,6 +40,9 @@ func CreateInfraComponents(
 		if err != nil {
 			return nil, err
 		}
+		if infraComponents.Ingress {
+			deployIngress(ctx, projectConfig, namespace, infraComponents)
+		}
 		dependencies = append(dependencies, certManagerIssuer)
 	}
 
