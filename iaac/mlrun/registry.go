@@ -28,29 +28,27 @@ func createDockerRegistrySecret(
 	// Retrieve the service account info for mlrun.
 	serviceAccount := serviceAccounts["mlrun"]
 
-	dockerConfigData := pulumi.All(
-		serviceAccount.Key.ToKeyOutput(),
-	).ApplyT(func(vals []interface{}) (string, error) {
-		fullKeyMap := vals[0].(string)
-
-		fullKeyBytes, err := json.Marshal(fullKeyMap)
+	// Decode the private key using the standard library.
+	decodedPrivateKey := serviceAccount.Key.PrivateKey.ApplyT(func(encoded string) (string, error) {
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
-			return "", fmt.Errorf("error marshalling full key: %w", err)
+			return "", fmt.Errorf("error decoding private key: %w", err)
 		}
-		fullKeyStr := string(fullKeyBytes)
+		return string(decoded), nil
+	}).(pulumi.StringOutput)
 
-		// Standard for Google registries: username is "_json_key".
+	// Build the docker config JSON as an output.
+	dockerConfigData := decodedPrivateKey.ApplyT(func(pk string) (string, error) {
 		username := "_json_key"
-		// Build the auth string "username:password" and base64-encode it.
-		authStr := fmt.Sprintf("%s:%s", username, fullKeyStr)
+		authStr := fmt.Sprintf("%s:%s", username, pk)
 		encodedAuth := base64.StdEncoding.EncodeToString([]byte(authStr))
 
-		// Build the docker config JSON.
+		// Build the docker config JSON structure.
 		config := map[string]interface{}{
 			"auths": map[string]interface{}{
 				registryURL: map[string]string{
 					"username": username,
-					"password": fullKeyStr,
+					"password": pk,
 					"email":    projectConfig.Email,
 					"auth":     encodedAuth,
 				},
@@ -61,7 +59,8 @@ func createDockerRegistrySecret(
 		if err != nil {
 			return "", fmt.Errorf("error marshalling docker config: %w", err)
 		}
-		// The Data field expects the value to be base64 encoded.
+
+		// The secret data should be base64-encoded.
 		encodedData := base64.StdEncoding.EncodeToString(configBytes)
 		return encodedData, nil
 	}).(pulumi.StringOutput)
@@ -81,7 +80,8 @@ func createDockerRegistrySecret(
 		pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}),
 	)
 	if err != nil {
-		return fmt.Errorf("error creating Kubernetes secret: %w", err)
+		return err
 	}
+
 	return nil
 }
