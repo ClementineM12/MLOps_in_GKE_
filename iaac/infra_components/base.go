@@ -14,7 +14,7 @@ func CreateInfraComponents(
 	namespace string,
 	k8sProvider *kubernetes.Provider,
 	infraComponents InfraComponents,
-) ([]pulumi.Resource, error) {
+) ([]pulumi.Resource, string, error) {
 
 	var (
 		dependencies []pulumi.Resource
@@ -26,7 +26,7 @@ func CreateInfraComponents(
 	if infraComponents.NginxIngress {
 		nginxController, err = deployNginxController(ctx, projectConfig, k8sProvider)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		dependencies = append(dependencies, nginxController)
 	}
@@ -38,7 +38,7 @@ func CreateInfraComponents(
 		}
 		certManagerIssuer, err = deployCertManager(ctx, projectConfig, namespace, k8sProvider, infraComponents, opts...)
 		if err != nil {
-			return nil, err
+			return nil, LetsEncrypt, err
 		}
 		if infraComponents.Ingress {
 			deployIngress(ctx, projectConfig, namespace, infraComponents)
@@ -46,5 +46,5 @@ func CreateInfraComponents(
 		dependencies = append(dependencies, certManagerIssuer)
 	}
 
-	return dependencies, nil
+	return dependencies, LetsEncrypt, nil
 }

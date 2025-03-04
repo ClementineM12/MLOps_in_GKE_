@@ -21,6 +21,7 @@ var (
 				"roles/storage.objectAdmin",
 			},
 			CreateServiceAccount: true,
+			CreateMember:         true,
 			CreateKey:            true,
 		},
 	}

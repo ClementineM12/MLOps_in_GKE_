@@ -15,10 +15,11 @@ import (
 )
 
 var (
+	deploy = true
+
 	application      = "mlrun"
 	domainPrefix     = "mlrun"
 	namespace        = "mlrun"
-	deploy           = true
 	helmChart        = "mlrun-ce"
 	helmChartVersion = "0.7.3"
 	helmChartRepo    = "https://mlrun.github.io/ce"
@@ -52,23 +53,24 @@ func CreateMLRunResources(
 	if err != nil {
 		return err
 	}
-	if err := createDockerRegistrySecret(ctx, projectConfig, serviceAccounts, registry, registryEndpoint, k8sProvider); err != nil {
+	err = createDockerRegistrySecret(ctx, projectConfig, serviceAccounts, registry, registryURL, k8sProvider)
+	if err != nil {
 		return err
 	}
 
 	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
-	dependencies, err := createKubernetesResources(ctx, projectConfig, infraComponents, k8sProvider)
+	dependencies, LetsEncrypt, err := createKubernetesResources(ctx, projectConfig, infraComponents, k8sProvider)
 	if err != nil {
 		return err
 	}
 
 	dependencies = append(dependencies, gcsBucket)
 	MLRunConfig := MLRunConfig{
-		registryEndpoint:   registryEndpoint,
-		registryURL:        registryURL,
-		gcsBucketName:      bucketName,
-		registrySecretName: registrySecretName,
-		domain:             domain,
+		RegistryURL:        registryURL,
+		GcsBucketName:      bucketName,
+		RegistrySecretName: registrySecretName,
+		Domain:             domain,
+		LetsEncrypt:        LetsEncrypt,
 	}
 	if deploy {
 		if err = deployMLRun(ctx, projectConfig, k8sProvider, MLRunConfig, dependencies); err != nil {
@@ -91,12 +93,13 @@ func deployMLRun(
 	valuesFilePath := "../helm/mlrun/values/values.yaml"
 	// Build the replacement map using resolved strings.
 	userSettings := map[string]interface{}{
-		"gcsbucket":          MLRunConfig.gcsBucketName,
-		"hostName":           MLRunConfig.domain,
-		"registryURL":        MLRunConfig.registryURL,
-		"registrySecretName": MLRunConfig.registrySecretName,
+		"gcsbucket":          MLRunConfig.GcsBucketName,
+		"hostName":           MLRunConfig.Domain,
+		"registryURL":        MLRunConfig.RegistryURL,
+		"registrySecretName": MLRunConfig.RegistrySecretName,
 		"whitelistedIPs":     projectConfig.WhitelistedIPs,
 		"minioRootPassword":  "minio123",
+		"letsEncrypt":        MLRunConfig.LetsEncrypt,
 	}
 
 	// Get the substituted values map.

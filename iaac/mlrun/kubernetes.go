@@ -16,19 +16,19 @@ func createKubernetesResources(
 	projectConfig global.ProjectConfig,
 	infraComponents infracomponents.InfraComponents,
 	k8sProvider *kubernetes.Provider,
-) ([]pulumi.Resource, error) {
+) ([]pulumi.Resource, string, error) {
 
 	dependencies := []pulumi.Resource{}
 	_, err := createMLRunNamespace(ctx, projectConfig, k8sProvider)
 	if err != nil {
-		return dependencies, err
+		return dependencies, "", err
 	}
-	dependencies, err = infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
+	dependencies, LetsEncrypt, err := infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
 	if err != nil {
-		return dependencies, err
+		return dependencies, LetsEncrypt, err
 	}
 
-	return dependencies, nil
+	return dependencies, LetsEncrypt, nil
 }
 
 func createMLRunNamespace(

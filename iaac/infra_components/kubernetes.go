@@ -54,19 +54,19 @@ func certManagerIssuerYAML(
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: letsencrypt-production
+  name: %s
   namespace: %s
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
     email: %s
     privateKeySecretRef:
-      name: letsencrypt-production
+      name: %s
     solvers:
     - http01:
         ingress:
           ingressClassName: nginx
-`, namespace, projectConfig.Email)
+`, LetsEncrypt, namespace, projectConfig.Email, LetsEncrypt)
 
 	return map[string]string{
 		"issuer": issuerYAML,
@@ -88,12 +88,12 @@ metadata:
 spec:
   secretName: mlrun-secret-tls
   issuerRef:
-    name: letsencrypt-production
+    name: %s
     kind: Issuer
   commonName: %s
   dnsNames:
     - %s
-`, namespace, DNS, DNS)
+`, namespace, LetsEncrypt, DNS, DNS)
 
 	return map[string]string{
 		"certificate": certYAML,

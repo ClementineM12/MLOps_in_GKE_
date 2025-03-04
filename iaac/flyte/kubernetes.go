@@ -25,7 +25,7 @@ func createKubernetesResources(
 	if err != nil {
 		return dependencies, err
 	}
-	dependencies, err = infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
+	dependencies, _, err = infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
 	if err != nil {
 		return dependencies, err
 	}

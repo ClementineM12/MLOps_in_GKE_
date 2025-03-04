@@ -27,24 +27,30 @@ func createDockerRegistrySecret(
 ) error {
 	// Retrieve the service account info for mlrun.
 	serviceAccount := serviceAccounts["mlrun"]
-	serviceAccountKey := serviceAccount.Key
 
-	// Use the complete JSON key. Adjust this if your struct has a different field (e.g. JsonKey).
-	// Here we assume serviceAccountKey.PrivateKey holds the full JSON key.
-	dockerConfigData := serviceAccountKey.PrivateKey.ApplyT(func(key string) (string, error) {
-		// Standard for Google registries: username is "_json_key"
+	dockerConfigData := pulumi.All(
+		serviceAccount.Key.ToKeyOutput(),
+	).ApplyT(func(vals []interface{}) (string, error) {
+		fullKeyMap := vals[0].(string)
+
+		fullKeyBytes, err := json.Marshal(fullKeyMap)
+		if err != nil {
+			return "", fmt.Errorf("error marshalling full key: %w", err)
+		}
+		fullKeyStr := string(fullKeyBytes)
+
+		// Standard for Google registries: username is "_json_key".
 		username := "_json_key"
 		// Build the auth string "username:password" and base64-encode it.
-		authStr := fmt.Sprintf("%s:%s", username, key)
+		authStr := fmt.Sprintf("%s:%s", username, fullKeyStr)
 		encodedAuth := base64.StdEncoding.EncodeToString([]byte(authStr))
 
-		// Build the docker config JSON in the format expected by Kubernetes.
-		// This matches the output of: kubectl create secret docker-registry ...
+		// Build the docker config JSON.
 		config := map[string]interface{}{
 			"auths": map[string]interface{}{
 				registryURL: map[string]string{
 					"username": username,
-					"password": key,
+					"password": fullKeyStr,
 					"email":    projectConfig.Email,
 					"auth":     encodedAuth,
 				},
@@ -53,10 +59,11 @@ func createDockerRegistrySecret(
 
 		configBytes, err := json.Marshal(config)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error marshalling docker config: %w", err)
 		}
-		// When using the Data field, Kubernetes expects the value to be base64 encoded.
-		return base64.StdEncoding.EncodeToString(configBytes), nil
+		// The Data field expects the value to be base64 encoded.
+		encodedData := base64.StdEncoding.EncodeToString(configBytes)
+		return encodedData, nil
 	}).(pulumi.StringOutput)
 
 	resourceName := fmt.Sprintf("%s-mlrun-gcr-registry-credentials", projectConfig.ResourceNamePrefix)

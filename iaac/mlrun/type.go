@@ -1,9 +1,10 @@
 package mlrun
 
 type MLRunConfig struct {
-	registryEndpoint   string
-	registryURL        string
-	gcsBucketName      string
-	registrySecretName string
-	domain             string
+	RegistryEndpoint   string
+	RegistryURL        string
+	GcsBucketName      string
+	RegistrySecretName string
+	Domain             string
+	LetsEncrypt        string
 }

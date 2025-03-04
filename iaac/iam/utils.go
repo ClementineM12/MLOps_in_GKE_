@@ -54,6 +54,11 @@ func (iam IAM) Validate(ctx *pulumi.Context) error {
 		ctx.Log.Error(err.Error(), nil)
 		return err
 	}
+	if !iam.CreateMember && len(iam.Roles) != 0 {
+		err := fmt.Errorf("field `Roles` is set but `CreateMember` is not set")
+		ctx.Log.Error(err.Error(), nil)
+		return err
+	}
 
 	return nil
 }

@@ -135,7 +135,7 @@ func validateEmail(
 	ctx *pulumi.Context,
 ) string {
 
-	if config.Get(ctx, "project:target") == "flyte" {
+	if config.Get(ctx, "project:target") != "" {
 		email := config.Get(ctx, "project:email")
 		if email == "" {
 			ctx.Log.Error("Cert manager needs field `project:email` defined.", nil)

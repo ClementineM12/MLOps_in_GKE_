@@ -10,4 +10,6 @@ var (
 	CertManagerHelmChart        = "cert-manager"
 	CertManagerHelmChartVersion = "v1.17.0"
 	CertManagerHelmChartRepo    = "https://charts.jetstack.io"
+
+	LetsEncrypt = "letsencrypt-production"
 )
