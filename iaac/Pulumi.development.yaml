@@ -8,17 +8,16 @@ config:
   project:domain: <provide_your_domain>
   project:email: <provide_your_email>
   project:whitelistedIPs: "<provide_your_IP>/32"
- 
+
   vpc:regions: "009"
   vpc:loadBalancer: false
   vpc.autoNEG: false
 
-  gke:nodePoolMachineType: e2-standard-2
+  gke:nodePoolMachineType: e2-standard-4
   gke:nodePoolDiskSizeGb: 100
   gke:nodePoolDiskType: pd-standard
-  gke:nodePoolMinNodeCount: 2
+  gke:nodePoolMinNodeCount: 3
   gke:nodePoolMaxNodeCount: 8
-  gke:nodePoolInitialNodeCount: 2
   gke:nodePoolPreemptible: false
   gke:privateNodes: true
 
@@ -31,10 +30,10 @@ config:
   ar:create: false 
   ar:githubSACreate: false
   ar:cdSACreate: false
-  ar:githubRepo: "ClementineM12/MLOps"
+  ar:githubRepo: <repo_name>
 
-  # cloudsql:create: true 
-  # cloudsql:instancePrefixName: flyte
-  # cloudsql:user: flyteadmin 
-  # cloudsql:database: flyte
+  cloudsql:create: false 
+  cloudsql:instancePrefixName: clem
+  cloudsql:user: admin 
+  cloudsql:database: mlop
   

@@ -105,9 +105,9 @@ func createGKENodePool(
 
 	resourceName := fmt.Sprintf("%s-gke-%s-np", projectConfig.ResourceNamePrefix, cloudRegion.Region)
 	gcpGKENodePool, err := container.NewNodePool(ctx, resourceName, &container.NodePoolArgs{
-		Cluster:   clusterID,
-		Name:      pulumi.String(resourceName),
-		NodeCount: pulumi.Int(1),
+		Cluster:          clusterID,
+		Name:             pulumi.String(resourceName),
+		InitialNodeCount: pulumi.Int(1),
 		NodeConfig: &container.NodePoolNodeConfigArgs{
 			Metadata:       ClusterConfig.NodePool.Metadata,
 			Preemptible:    pulumi.Bool(ClusterConfig.NodePool.Preemptible),
