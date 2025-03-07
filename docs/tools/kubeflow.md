@@ -116,5 +116,3 @@ This README provides essential guidelines for installing, securing, and upgradin
 * [Kubeflow GKE Docs](https://googlecloudplatform.github.io/kubeflow-gke-docs/dev/docs/deploy/deploy-cli/)
 * [Tool Architecture](https://www.kubeflow.org/docs/started/architecture/)
 * [Istio in Kubeflow](https://www.kubeflow.org/docs/concepts/multi-tenancy/istio/#why-kubeflow-needs-istio)
-
-

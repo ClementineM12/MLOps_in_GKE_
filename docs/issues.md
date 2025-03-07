@@ -1,6 +1,6 @@
 ## GCP 
 
-1. Error while updating **instance groups**:
+### Error while updating **instance groups**:
 
 By default, GKE instance groups use the service account with the format PROJECT_ID@cloudservices.gserviceaccount.com. Confirm that this default service account is assigned the Editor role, which should typically include the necessary permissions.
 
