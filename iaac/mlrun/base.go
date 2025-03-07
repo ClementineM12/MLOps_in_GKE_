@@ -40,7 +40,7 @@ func CreateMLRunResources(
 		CertManager:       true,
 		NginxIngress:      true,
 		CertManagerIssuer: true,
-		Certificate:       true,
+		Certificate:       false,
 		Domain:            domain,
 		Ingress:           false,
 	}

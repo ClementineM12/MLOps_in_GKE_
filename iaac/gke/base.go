@@ -31,10 +31,14 @@ func CreateGKEResources(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE: %w", err)
 	}
-	gcpGKENodePool, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), serviceAccount)
+	GKENodePools, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), serviceAccount)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}
 
-	return k8sProvider, gcpGKENodePool, err
+	baseNodePool, exists := GKENodePools["base"]
+	if !exists {
+		return nil, nil, fmt.Errorf("base node pool not found")
+	}
+	return k8sProvider, baseNodePool, err
 }

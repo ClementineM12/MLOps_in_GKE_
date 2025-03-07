@@ -1,14 +1,12 @@
 package gke
 
 import (
-	"mlops/iam"
-
-	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"mlops/iam"
 )
 
 var (
-	GKEDefaultVersion = "1.31.4-gke.1183000"
+	GKEDefaultVersion = "1.31.5-gke.1169000"
 
 	AdministrationIAM = map[string]iam.IAM{
 		"admin": {
@@ -21,39 +19,43 @@ var (
 				"roles/cloudtrace.agent",
 				"roles/monitoring.viewer",
 				"roles/storage.objectViewer",
+				"roles/container.defaultNodeServiceAccount",
 			},
 			CreateServiceAccount: true,
 			CreateMember:         true,
 		},
 	}
 
-	GKENodePoolSpecificConfig = map[string]NodePoolConfig{
-		"management": {
-			MinMasterVersion: pulumi.String(GKEDefaultVersion),
-			OauthScopes: pulumi.StringArray{
-				pulumi.String("https://www.googleapis.com/auth/devstorage.read_only"),
-				pulumi.String("https://www.googleapis.com/auth/logging.write"),
-				pulumi.String("https://www.googleapis.com/auth/monitoring"),
-				pulumi.String("https://www.googleapis.com/auth/trace.append"),
-				pulumi.String("https://www.googleapis.com/auth/cloud-platform"),
+	nodePoolsConfig = NodePoolConfigs{
+		"highmem": NodePoolConfig{
+			MachineType:      "e2-standard-8",
+			DiskSizeGb:       100,
+			InitialNodeCount: 0,
+			MinNodeCount:     0,
+			MaxNodeCount:     5,
+			Preemptible:      false,
+			LocationPolicy:   "ANY",
+			ResourceLabels: pulumi.StringMap{
+				"type-dedicated": pulumi.String("memory-optimized"),
 			},
-			WorkloadMetadataConfig: &container.NodePoolNodeConfigWorkloadMetadataConfigArgs{
-				Mode: pulumi.String("GKE_METADATA"),
+			Labels: pulumi.StringMap{
+				"dedicated": pulumi.String("highmem"),
 			},
-			Metadata: pulumi.StringMap{
-				"disable-legacy-endpoints": pulumi.String("true"),
-			},
-			ResourceLabels: pulumi.StringMap{},
 		},
-		"development": {
-			MinMasterVersion: pulumi.String(GKEDefaultVersion),
-			OauthScopes: pulumi.StringArray{
-				pulumi.String("https://www.googleapis.com/auth/devstorage.read_only"),
-				pulumi.String("https://www.googleapis.com/auth/logging.write"),
-				pulumi.String("https://www.googleapis.com/auth/monitoring"),
+		"cpu": NodePoolConfig{
+			MachineType:      "c2-standard-16",
+			DiskSizeGb:       100,
+			InitialNodeCount: 0,
+			MinNodeCount:     0,
+			MaxNodeCount:     5,
+			Preemptible:      false,
+			LocationPolicy:   "ANY",
+			ResourceLabels: pulumi.StringMap{
+				"type-dedicated": pulumi.String("cpu-optimized"),
 			},
-			WorkloadMetadataConfig: &container.NodePoolNodeConfigWorkloadMetadataConfigArgs{},
-			Metadata:               pulumi.StringMap{},
+			Labels: pulumi.StringMap{
+				"dedicated": pulumi.String("cpu"),
+			},
 		},
 	}
 )

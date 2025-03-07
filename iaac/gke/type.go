@@ -7,10 +7,12 @@ import (
 
 // NodePoolConfig holds the configuration for a GKE node pool
 type NodePoolConfig struct {
+	KeyName                string
 	MachineType            string
 	DiskSizeGb             int
 	DiskType               string
 	Preemptible            bool
+	InitialNodeCount       int
 	MinMasterVersion       pulumi.String
 	MinNodeCount           int
 	MaxNodeCount           int
@@ -18,8 +20,11 @@ type NodePoolConfig struct {
 	WorkloadMetadataConfig *container.NodePoolNodeConfigWorkloadMetadataConfigArgs
 	Metadata               pulumi.StringMap
 	ResourceLabels         pulumi.StringMap
+	Labels                 pulumi.StringMap
+	LocationPolicy         string
 }
 
+type NodePoolConfigs = map[string]NodePoolConfig
 type ManagementConfig struct {
 	AutoRepair  bool
 	AutoUpgrade bool
@@ -28,7 +33,7 @@ type ManagementConfig struct {
 // ClusterConfig holds the overall GKE cluster configuration
 type ClusterConfig struct {
 	Name       string
-	NodePool   NodePoolConfig
+	NodePools  NodePoolConfigs
 	Management ManagementConfig
 	Cidr       string
 }

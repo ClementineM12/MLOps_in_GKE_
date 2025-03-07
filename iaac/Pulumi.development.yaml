@@ -1,6 +1,5 @@
 config:
   gcp:project: mlops-development-project
-  gcp:region: europe-west8
 
   project:prefix: ml-02
   project:target: mlrun
@@ -9,7 +8,7 @@ config:
   project:email: <provide_your_email>
   project:whitelistedIPs: "<provide_your_IP>/32"
 
-  vpc:regions: "009"
+  vpc:regions: "007" # <- This is selected in order to have the option of using NodePools with GPU acceleration
   vpc:loadBalancer: false
   vpc.autoNEG: false
 

@@ -51,10 +51,10 @@ def fetch_dataset(
             raise
         
         # Upload metadata CSV
-        local_metadata_path = os.path.join(dataset_path, metadata_file)
+        local_metadata_path = os.path.join(dataset_path, metadata_filename)
         try:
-            minio_client.fput_object(bucket_name, metadata_file, local_metadata_path)
-            print(f"Uploaded metadata CSV: {metadata_file}")
+            minio_client.fput_object(bucket_name, metadata_filename, local_metadata_path)
+            print(f"Uploaded metadata CSV: {metadata_filename}")
         except S3Error as err:
             print(f"Error uploading metadata CSV: {err}")
             raise
@@ -65,7 +65,7 @@ def fetch_dataset(
                 if image_file.lower().endswith(".jpg"):
                     local_image_path = os.path.join(root, image_file)
                     # All images are uploaded to the same bucket folder, ignoring subdirectory structure.
-                    object_name = f"{images_prefix}/{image_file}"
+                    object_name = f"{images_dir}/{image_file}"
                     try:
                         minio_client.fput_object(bucket_name, object_name, local_image_path)
                     except S3Error as err:

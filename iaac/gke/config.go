@@ -1,6 +1,7 @@
 package gke
 
 import (
+	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/container"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
@@ -14,56 +15,16 @@ func Configuration(
 	ctx *pulumi.Context,
 ) *ClusterConfig {
 
-	target := config.Get(ctx, "gke:target")
-
-	// Initialize NodePoolConfig with defaults
-	defaultNodePool := NodePoolConfig{
-		MachineType:  "e2-medium",
-		DiskSizeGb:   100,
-		DiskType:     "pd-standard",
-		MinNodeCount: 1,
-		MaxNodeCount: 3,
-	}
-
-	nodePool := NodePoolConfig{
-		MachineType:            config.Get(ctx, "gke:nodePoolMachineType"),
-		DiskSizeGb:             config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
-		DiskType:               config.Get(ctx, "gke:nodePoolDiskType"),
-		MinMasterVersion:       GKENodePoolSpecificConfig[target].MinMasterVersion,
-		MinNodeCount:           config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
-		MaxNodeCount:           config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
-		Preemptible:            config.GetBool(ctx, "gke:nodePoolPreemptible"),
-		OauthScopes:            GKENodePoolSpecificConfig[target].OauthScopes,
-		WorkloadMetadataConfig: GKENodePoolSpecificConfig[target].WorkloadMetadataConfig,
-		Metadata:               GKENodePoolSpecificConfig[target].Metadata,
-	}
-
+	nodePoolConfigs := configureNodePools(ctx)
 	management := ManagementConfig{
 		AutoRepair:  config.GetBool(ctx, "gke:managementAutoRepair"),
 		AutoUpgrade: config.GetBool(ctx, "gke:managementAutoUpgrade"),
 	}
 
-	// Apply defaults for any missing values
-	if nodePool.MachineType == "" {
-		nodePool.MachineType = defaultNodePool.MachineType
-	}
-	if nodePool.DiskSizeGb == 0 {
-		nodePool.DiskSizeGb = defaultNodePool.DiskSizeGb
-	}
-	if nodePool.DiskType == "" {
-		nodePool.DiskType = defaultNodePool.DiskType
-	}
-	if nodePool.MinNodeCount == 0 {
-		nodePool.MinNodeCount = defaultNodePool.MinNodeCount
-	}
-	if nodePool.MaxNodeCount == 0 {
-		nodePool.MaxNodeCount = defaultNodePool.MaxNodeCount
-	}
-
 	clusterConfig := &ClusterConfig{
 		Name:       config.Get(ctx, "gke:name"),
 		Cidr:       config.Get(ctx, "gke:cidr"),
-		NodePool:   nodePool,
+		NodePools:  nodePoolConfigs,
 		Management: management,
 	}
 
@@ -76,4 +37,71 @@ func Configuration(
 	}
 
 	return clusterConfig
+}
+
+// configureNodePools reads the base configuration from Pulumi, then merges it with the specific overrides.
+func configureNodePools(ctx *pulumi.Context) NodePoolConfigs {
+	// Initialize NodePoolConfig with defaults.
+	defaultNodePool := NodePoolConfig{
+		MachineType: "e2-medium",
+		DiskSizeGb:  100,
+		DiskType:    "pd-standard",
+	}
+
+	// Read the base configuration from Pulumi.
+	base := NodePoolConfig{
+		MachineType:      config.Get(ctx, "gke:nodePoolMachineType"),
+		DiskSizeGb:       config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
+		DiskType:         config.Get(ctx, "gke:nodePoolDiskType"),
+		InitialNodeCount: 1,
+		MinNodeCount:     config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
+		MaxNodeCount:     config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
+		Preemptible:      config.GetBool(ctx, "gke:nodePoolPreemptible"),
+		// Assuming LocationPolicy is a field of NodePoolConfig.
+		LocationPolicy: "BALANCED",
+	}
+
+	// Merge the base config with the overrides.
+	allNodePools := mergeNodePoolConfigs(
+		NodePoolConfigs{"base": base},
+		nodePoolsConfig,
+	)
+
+	// Create a new map to hold the final merged configurations.
+	mergedConfigs := make(NodePoolConfigs)
+
+	// Iterate over all merged node pool configurations.
+	for key, np := range allNodePools {
+		// Apply defaults for any missing values.
+		if np.MachineType == "" {
+			np.MachineType = defaultNodePool.MachineType
+		}
+		if np.DiskSizeGb == 0 {
+			np.DiskSizeGb = defaultNodePool.DiskSizeGb
+		}
+		if np.DiskType == "" {
+			np.DiskType = defaultNodePool.DiskType
+		}
+		if np.Metadata == nil {
+			np.Metadata = pulumi.StringMap{
+				"disable-legacy-endpoints": pulumi.String("true"),
+			}
+		}
+		if np.WorkloadMetadataConfig == nil {
+			np.WorkloadMetadataConfig = &container.NodePoolNodeConfigWorkloadMetadataConfigArgs{
+				Mode: pulumi.String("GKE_METADATA"),
+			}
+		}
+
+		// Set the KeyName based on the map key.
+		if key == "base" {
+			np.KeyName = ""
+		} else {
+			np.KeyName = key
+		}
+
+		mergedConfigs[key] = np
+	}
+
+	return mergedConfigs
 }

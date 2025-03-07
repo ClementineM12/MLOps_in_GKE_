@@ -89,25 +89,8 @@ def process_metadata(
     skin_meta = skin_meta.assign(label=skin_meta.apply(lesion_type, axis=1))
     
     skin_meta['image'] = skin_meta['image_id'].apply(lambda img_id: convert_image_into_array(img_id, source_bucket=source_bucket, images_dir=images_dir))
-    
-    # Convert the processed metadata DataFrame to CSV (in memory)
-    pickle_bytes = BytesIO()
-    skin_meta.to_pickle(pickle_bytes)
-    pickle_bytes.seek(0)
-    pickle_length = pickle_bytes.getbuffer().nbytes
-    
-    try:
-        minio_client.put_object(
-            processed_bucket, 
-            processed_metadata_filename, 
-            pickle_bytes, 
-            pickle_length, 
-            content_type="application/octet-stream"
-        )
-        print(f"Uploaded processed metadata pickle file to '{processed_metadata_filename}' in bucket '{processed_bucket}'.")
-    except S3Error as err:
-        print(f"Error uploading processed metadata pickle file: {err}")
-        raise
+
+    put_metadata_file(skin_meta, processed_bucket, processed_metadata_filename)
         
     
 def create_segmented_images(
@@ -115,12 +98,14 @@ def create_segmented_images(
     processed_metadata_filename: str,
     n_samples: int = 2000, 
 ):
-    skin_meta = get_metadata_file(processed_bucket, metadata_filename)
+    skin_meta = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
     print(f"Skin Image shape: {skin_meta['image'][0].shape}")
     
     balanced_data = create_balanced_dataset(skin_meta, n_samples)
     
-    create_segmented_pictures(balanced_data['image'], balanced_data, processed_bucket)
+    skin_data = create_segmented_pictures(balanced_data['image'], balanced_data, processed_bucket)
+    put_metadata_file(skin_data, processed_bucket, processed_metadata_filename)
+
 
 def convert_image_into_array(
     image_id: str,
@@ -149,6 +134,7 @@ def convert_image_into_array(
 def get_metadata_file(
     bucket: str, 
     metadata_filename: str,
+    target: str = "csv",
 ) -> pd.DataFrame:
     """
     Retrieve the metadata CSV file from the source bucket.
@@ -158,14 +144,47 @@ def get_metadata_file(
         response = minio_client.get_object(bucket, metadata_filename)
         # Read all bytes from the response.
         data = response.read()
-        # Use StringIO to convert bytes to a file-like object for pandas.
-        df = pd.read_csv(io.StringIO(data.decode('utf-8')))
+
+        # Process file based on the target type.
+        if target == "csv":
+            # Convert bytes to a file-like object and decode.
+            df = pd.read_csv(io.StringIO(data.decode('utf-8')))
+        elif target == "pickle":
+            # Use BytesIO to load the pickled DataFrame.
+            df = pd.read_pickle(io.BytesIO(data))
+        else:
+            raise ValueError(f"Unsupported target type: {target}")
+
         print(f"Retrieved metadata file '{metadata_filename}' from bucket '{bucket}'.")
         return df
     except S3Error as err:
         print(f"Error retrieving metadata file from bucket: {err}")
         raise
-            
+
+def put_metadata_file(
+    metadata: pd.DataFrame,
+    bucket: str, 
+    metadata_filename: str,
+    target: str = "pickle",
+):
+    pickle_bytes = BytesIO()
+    metadata.to_pickle(pickle_bytes)
+    pickle_bytes.seek(0)
+    pickle_length = pickle_bytes.getbuffer().nbytes
+    
+    try:
+        minio_client.put_object(
+            bucket, 
+            metadata_filename, 
+            pickle_bytes, 
+            pickle_length, 
+            content_type="application/octet-stream"
+        )
+        print(f"Uploaded processed metadata pickle file to '{metadata_filename}' in bucket '{bucket}'.")
+    except S3Error as err:
+        print(f"Error uploading processed metadata pickle file: {err}")
+        raise
+
 def plot_1(skin_meta: pd.DataFrame):
     sns.set_style('darkgrid', {"grid.color": ".8", "grid.linestyle": ":"})
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -238,11 +257,14 @@ def create_segmented_pictures(
         try:
             file_size = buffer.getbuffer().nbytes
             minio_client.put_object(processed_bucket, object_name, buffer, file_size, content_type="image/jpeg")
-            print(f"Uploaded segmented image: {object_name}")
         except S3Error as err:
             print(f"Error uploading segmented image '{object_name}': {err}")
             raise
 
-        skin_data.at[i, 'segmented_image'] = image_cropped
+        skin_data.at[i, 'segmented_image'] = np.array(image_cropped).astype(np.uint8)
         
     return skin_data
+
+
+def test(): 
+    print("I RUN")

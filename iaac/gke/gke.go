@@ -56,14 +56,12 @@ func createGKE(
 		InitialNodeCount:      pulumi.Int(1),
 		// EnableShieldedNodes:   pulumi.Bool(privateNodesEnabled),
 		PrivateClusterConfig: privateClusterConfig,
-		MinMasterVersion:     pulumi.String(ClusterConfig.NodePool.MinMasterVersion),
 		VerticalPodAutoscaling: &container.ClusterVerticalPodAutoscalingArgs{
 			Enabled: pulumi.Bool(true),
 		},
 		ReleaseChannel: &container.ClusterReleaseChannelArgs{
 			Channel: pulumi.String(GKEReleaseChannel),
 		},
-		ResourceLabels: ClusterConfig.NodePool.ResourceLabels,
 		WorkloadIdentityConfig: &container.ClusterWorkloadIdentityConfigArgs{
 			WorkloadPool: pulumi.String(fmt.Sprintf("%s.svc.id.goog", projectConfig.ProjectId)),
 		},
@@ -101,49 +99,67 @@ func createGKENodePool(
 	cloudRegion *global.CloudRegion,
 	clusterID pulumi.StringInput,
 	serviceAccount map[string]iam.ServiceAccountInfo,
-) (*container.NodePool, error) {
+) (map[string]*container.NodePool, error) {
 
-	resourceName := fmt.Sprintf("%s-gke-%s-np", projectConfig.ResourceNamePrefix, cloudRegion.Region)
-	gcpGKENodePool, err := container.NewNodePool(ctx, resourceName, &container.NodePoolArgs{
-		Cluster:          clusterID,
-		Name:             pulumi.String(resourceName),
-		InitialNodeCount: pulumi.Int(1),
-		NodeConfig: &container.NodePoolNodeConfigArgs{
-			Metadata:       ClusterConfig.NodePool.Metadata,
-			Preemptible:    pulumi.Bool(ClusterConfig.NodePool.Preemptible),
-			MachineType:    pulumi.String(ClusterConfig.NodePool.MachineType),
-			OauthScopes:    ClusterConfig.NodePool.OauthScopes,
-			Labels:         ClusterConfig.NodePool.ResourceLabels,
-			DiskType:       pulumi.String(ClusterConfig.NodePool.DiskType),
-			DiskSizeGb:     pulumi.Int(ClusterConfig.NodePool.DiskSizeGb),
-			ServiceAccount: serviceAccount["admin"].ServiceAccount.Email,
-			ResourceLabels: pulumi.StringMap{
-				"goog-gke-node-pool-provisioning-model": pulumi.String("on-demand"),
-			},
-			KubeletConfig: &container.NodePoolNodeConfigKubeletConfigArgs{
-				CpuCfsQuota:       pulumi.Bool(false),
-				CpuCfsQuotaPeriod: pulumi.String(""),
-				CpuManagerPolicy:  pulumi.String(""),
-				PodPidsLimit:      pulumi.Int(1024),
-			},
-			// Add Workload Metadata Config for Workload Identity
-			// Note: Enabling Workload Identity on an existing cluster does not automatically enable Workload Identity on the cluster's existing node pools.
-			//           We recommend that you enable Workload Identity on all your cluster's node pools since Config Connector could run on any of them.
-			//           https://cloud.google.com/config-connector/docs/how-to/install-upgrade-uninstall#prerequisites
-			WorkloadMetadataConfig: ClusterConfig.NodePool.WorkloadMetadataConfig,
-		},
-		Autoscaling: &container.NodePoolAutoscalingArgs{
-			LocationPolicy: pulumi.String("BALANCED"),
-			MaxNodeCount:   pulumi.Int(ClusterConfig.NodePool.MaxNodeCount),
-			MinNodeCount:   pulumi.Int(ClusterConfig.NodePool.MinNodeCount),
-		},
-		Management: &container.NodePoolManagementArgs{
-			AutoRepair:  pulumi.Bool(ClusterConfig.Management.AutoRepair),
-			AutoUpgrade: pulumi.Bool(ClusterConfig.Management.AutoUpgrade),
-		},
-	}, pulumi.DependsOn([]pulumi.Resource{serviceAccount["admin"].ServiceAccount}))
+	// Create a map to hold the created node pools
+	nodePools := make(map[string]*container.NodePool)
 
-	return gcpGKENodePool, err
+	for key, nodePool := range ClusterConfig.NodePools {
+		resourceName := ""
+		if key == "base" {
+			resourceName = fmt.Sprintf("%s-gke-%s-np", projectConfig.ResourceNamePrefix, cloudRegion.Region)
+		} else {
+			resourceName = fmt.Sprintf("%s-gke-%s-%s-np", projectConfig.ResourceNamePrefix, cloudRegion.Region, nodePool.KeyName)
+		}
+
+		// Create the node pool using the provided configuration.
+		np, err := container.NewNodePool(ctx, resourceName, &container.NodePoolArgs{
+			Cluster:          clusterID,
+			Name:             pulumi.String(resourceName),
+			InitialNodeCount: pulumi.Int(nodePool.InitialNodeCount),
+			NodeConfig: &container.NodePoolNodeConfigArgs{
+				Metadata:       nodePool.Metadata,
+				Preemptible:    pulumi.Bool(nodePool.Preemptible),
+				MachineType:    pulumi.String(nodePool.MachineType),
+				OauthScopes:    nodePool.OauthScopes,
+				Labels:         nodePool.Labels, // Comma added here
+				DiskType:       pulumi.String(nodePool.DiskType),
+				DiskSizeGb:     pulumi.Int(nodePool.DiskSizeGb),
+				ServiceAccount: serviceAccount["admin"].ServiceAccount.Email,
+				ResourceLabels: mergeStringMaps(
+					pulumi.StringMap{
+						"goog-gke-node-pool-provisioning-model": pulumi.String("on-demand"),
+					},
+					nodePool.ResourceLabels,
+				),
+				KubeletConfig: &container.NodePoolNodeConfigKubeletConfigArgs{
+					CpuCfsQuota:       pulumi.Bool(false),
+					CpuCfsQuotaPeriod: pulumi.String(""),
+					CpuManagerPolicy:  pulumi.String(""),
+					PodPidsLimit:      pulumi.Int(1024),
+				},
+				WorkloadMetadataConfig: nodePool.WorkloadMetadataConfig,
+			},
+			Autoscaling: &container.NodePoolAutoscalingArgs{
+				LocationPolicy: pulumi.String(nodePool.LocationPolicy),
+				MinNodeCount:   pulumi.Int(nodePool.MinNodeCount),
+				MaxNodeCount:   pulumi.Int(nodePool.MaxNodeCount),
+			},
+			Management: &container.NodePoolManagementArgs{
+				AutoRepair:  pulumi.Bool(ClusterConfig.Management.AutoRepair),
+				AutoUpgrade: pulumi.Bool(ClusterConfig.Management.AutoUpgrade),
+			},
+		}, pulumi.DependsOn([]pulumi.Resource{serviceAccount["admin"].ServiceAccount}))
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to create %s node pool: %w", key, err)
+		}
+
+		// Save the created node pool in the map keyed by the node pool's KeyName.
+		nodePools[key] = np
+	}
+
+	return nodePools, nil
 }
 
 // createKubernetesProvider creates a Kubernetes provider using the kubeconfig generated from the GKE cluster's endpoint and authentication credentials.
