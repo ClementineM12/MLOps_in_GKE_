@@ -12,12 +12,6 @@ config:
   vpc:loadBalancer: false
   vpc.autoNEG: false
 
-  gke:nodePoolMachineType: e2-standard-4
-  gke:nodePoolDiskSizeGb: 100
-  gke:nodePoolDiskType: pd-standard
-  gke:nodePoolMinNodeCount: 3
-  gke:nodePoolMaxNodeCount: 8
-  gke:nodePoolPreemptible: false
   gke:privateNodes: true
 
   gke:managementAutoRepair: true
