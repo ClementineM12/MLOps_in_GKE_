@@ -264,7 +264,3 @@ def create_segmented_pictures(
         skin_data.at[i, 'segmented_image'] = np.array(image_cropped).astype(np.uint8)
         
     return skin_data
-
-
-def test(): 
-    print("I RUN")

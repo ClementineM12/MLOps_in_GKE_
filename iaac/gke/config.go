@@ -43,9 +43,10 @@ func Configuration(
 func configureNodePools(ctx *pulumi.Context) NodePoolConfigs {
 	// Initialize NodePoolConfig with defaults.
 	defaultNodePool := NodePoolConfig{
-		MachineType: "e2-medium",
-		DiskSizeGb:  100,
-		DiskType:    "pd-standard",
+		MachineType:  "e2-highmem-2", // change to "e2-standard-4"
+		DiskSizeGb:   100,
+		MaxNodeCount: 5,
+		DiskType:     "pd-standard",
 	}
 
 	// Read the base configuration from Pulumi.
@@ -54,7 +55,7 @@ func configureNodePools(ctx *pulumi.Context) NodePoolConfigs {
 		DiskSizeGb:       config.GetInt(ctx, "gke:nodePoolDiskSizeGb"),
 		DiskType:         config.Get(ctx, "gke:nodePoolDiskType"),
 		InitialNodeCount: 1,
-		MinNodeCount:     config.GetInt(ctx, "gke:nodePoolMinNodeCount"),
+		MinNodeCount:     3,
 		MaxNodeCount:     config.GetInt(ctx, "gke:nodePoolMaxNodeCount"),
 		Preemptible:      config.GetBool(ctx, "gke:nodePoolPreemptible"),
 		// Assuming LocationPolicy is a field of NodePoolConfig.
@@ -78,6 +79,9 @@ func configureNodePools(ctx *pulumi.Context) NodePoolConfigs {
 		}
 		if np.DiskSizeGb == 0 {
 			np.DiskSizeGb = defaultNodePool.DiskSizeGb
+		}
+		if np.MaxNodeCount == 0 {
+			np.MaxNodeCount = defaultNodePool.MaxNodeCount
 		}
 		if np.DiskType == "" {
 			np.DiskType = defaultNodePool.DiskType

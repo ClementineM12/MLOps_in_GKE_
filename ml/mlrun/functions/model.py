@@ -4,6 +4,7 @@ import pandas as pd
 import PIL.Image as Image
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 
 from minio import Minio
 from minio.error import S3Error
@@ -12,7 +13,9 @@ import io
 from io import BytesIO
 
 import mlrun 
-import mlrun.frameworks.tf_keras as mlrun_tf_keras
+from mlrun.frameworks.tf_keras import apply_mlrun
+from mlrun.artifacts import PlotArtifact
+from mlrun.execution import MLClientCtx
 
 from tensorflow import keras
 
@@ -66,8 +69,10 @@ def train_random_forest(
     data = skin_features.drop('label', axis=1)
     # Split the dataset into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.25, random_state=seed)
-
+    
     RF = RandomForest(RandomForestClassifier(random_state=seed), X_train, y_train, X_test, y_test, 'RF')
+    
+    # mlrun.apply_mlrun(model=RF, model_name="random-forest", X_test=x_test, y_test=Y_test)
 
 
 # Random Forest classifier
@@ -99,42 +104,50 @@ def RandomForest(
 
 
 def train_cnn(
-    context: mlrun.MLClientCtx,
+    context: MLClientCtx,
     processed_bucket: str, 
     processed_metadata_filename: str,
     sample: int,
     batch_size: int,
-    lr: float,
     epochs: int,
 ):
     # Get the datasets:
     training_set, validation_set = _get_datasets(
         processed_bucket, processed_metadata_filename, 0.2, sample, batch_size
     )
-
+    
+    # Compute steps_per_epoch based on the number of training samples.
+    # With a sample size of `sample` and a test split of 20%, training samples = sample * 0.8.
+    steps_per_epoch = math.ceil((sample * 0.8) / batch_size)
+    
     # Get the model
     model = _get_model()
     # Initialize the optimizer
-    optimizer = keras.optimizers.Adam(lr=lr)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-
+    optimizer = keras.optimizers.Adam(learning_rate=1e-4)
+    optimizer.lr = optimizer.learning_rate
+    
     # Apply MLRun's interface for tf.keras
-    mlrun_tf_keras.apply_mlrun(model=model, model_name="mask_detector", context=context)
-
-    model.fit(
+    # apply_mlrun(model=model, model_name="skin_cancer_detection", context=context)
+    
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+    
+    history = model.fit(
         training_set,
         validation_data=validation_set,
         epochs=epochs,
-        callbacks=[keras.callbacks.ReduceLROnPlateau(patience=10, verbose=1)],
-        steps_per_epoch=35,
+        steps_per_epoch=steps_per_epoch,
     )
+    
+    # context.log_artifact(
+    #     PlotArtifact("Plot loss", body=plot_loss(history)),
+    # )
     
 def _get_model() -> keras.Model: 
     # Load a pre-trained VGG16 model and remove the top layers
     base_model = keras.applications.VGG16(
         weights='imagenet', 
         include_top=False, 
-        input_shape=(224, 224, 3)
+        input_shape=(224, 224, 3),
     )
 
     head_model = base_model.output
@@ -147,12 +160,52 @@ def _get_model() -> keras.Model:
     # Create the model
     model = keras.Model(name="skin_cancer_detection", inputs=base_model.input, outputs=head_model)
 
-    # Unfreeze the last 4 convolutional blocks and train with a lower learning rate
-    for layer in base_model.layers[15:]:
-        layer.trainable = True
+    for layer in base_model.layers:
+        layer.trainable = False
 
     return model 
     
+def _get_datasets(
+    processed_bucket: str,
+    processed_metadata_filename: str,
+    test_size: float, 
+    data_size: int,
+    batch_size: str,
+    seed: int = 42,
+    is_evaluation: bool = False,
+):
+    # Build the dataset going through the classes directories and collecting the images
+    metadata = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
+
+    data = metadata[:data_size]
+
+    labels = data['label']
+    images = load_images_from_minio(data)
+    # Check if its an evaluation, if so, use the entire data
+    if is_evaluation:
+        return images, labels
+
+    # Split the dataset into training and validation sets
+    x_train, x_test, y_train, y_test = train_test_split(
+        images, labels, test_size=test_size, stratify=labels, random_state=seed,
+    )
+
+    # Construct the training image generator for data augmentation:
+    image_data_generator = keras.preprocessing.image.ImageDataGenerator(
+        rotation_range=20,
+        zoom_range=0.15,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.15,
+        horizontal_flip=True,
+        fill_mode="nearest",
+    )
+
+    return (
+        image_data_generator.flow(x_train, y_train, batch_size=batch_size),
+        (x_test, y_test),
+    )
+
 def evaluate_cnn(
     context: mlrun.MLClientCtx, 
     model_path: str, 
@@ -228,47 +281,6 @@ def put_metadata_file(
     except S3Error as err:
         print(f"Error uploading processed metadata pickle file: {err}")
         raise
-
-def _get_datasets(
-    processed_bucket: str,
-    processed_metadata_filename: str,
-    test_size: float, 
-    data_size: int,
-    batch_size: str,
-    seed: int = 42,
-    is_evaluation: bool = False,
-):
-    # Build the dataset going through the classes directories and collecting the images
-    metadata = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
-
-    data = metadata[:data_size]
-
-    labels = data['label']
-    images = load_images_from_minio(data)
-    # Check if its an evaluation, if so, use the entire data
-    if is_evaluation:
-        return images, labels
-
-    # Split the dataset into training and validation sets
-    x_train, x_test, y_train, y_test = train_test_split(
-        images, labels, test_size=test_size, stratify=labels, random_state=seed,
-    )
-
-    # Construct the training image generator for data augmentation:
-    image_data_generator = keras.preprocessing.image.ImageDataGenerator(
-        rotation_range=20,
-        zoom_range=0.15,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        shear_range=0.15,
-        horizontal_flip=True,
-        fill_mode="nearest",
-    )
-
-    return (
-        image_data_generator.flow(x_train, y_train, batch_size=batch_size),
-        (x_test, y_test),
-    )
 
 def load_images_from_minio(
     dataset, 

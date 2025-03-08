@@ -28,7 +28,7 @@ var (
 
 	nodePoolsConfig = NodePoolConfigs{
 		"highmem": NodePoolConfig{
-			MachineType:      "e2-standard-8",
+			MachineType:      "e2-highmem-4",
 			DiskSizeGb:       100,
 			InitialNodeCount: 0,
 			MinNodeCount:     0,
@@ -42,8 +42,8 @@ var (
 				"dedicated": pulumi.String("highmem"),
 			},
 		},
-		"cpu": NodePoolConfig{
-			MachineType:      "c2-standard-16",
+		"highcpu": NodePoolConfig{
+			MachineType:      "e2-standard-16",
 			DiskSizeGb:       100,
 			InitialNodeCount: 0,
 			MinNodeCount:     0,
@@ -54,7 +54,7 @@ var (
 				"type-dedicated": pulumi.String("cpu-optimized"),
 			},
 			Labels: pulumi.StringMap{
-				"dedicated": pulumi.String("cpu"),
+				"dedicated": pulumi.String("highcpu"),
 			},
 		},
 	}
