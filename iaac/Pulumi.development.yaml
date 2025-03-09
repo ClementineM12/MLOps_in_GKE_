@@ -2,7 +2,7 @@ config:
   gcp:project: mlops-development-project
 
   project:prefix: ml-02
-  project:target: mlrun
+  project:target: flyte
 
   project:domain: <provide_your_domain>
   project:email: <provide_your_email>
@@ -20,13 +20,5 @@ config:
   gke:loggingService: logging.googleapis.com/kubernetes
   gke:monitoringService: monitoring.googleapis.com/kubernetes
 
-  ar:create: false 
-  ar:githubSACreate: false
-  ar:cdSACreate: false
   ar:githubRepo: <repo_name>
-
-  cloudsql:create: false 
-  cloudsql:instancePrefixName: clem
-  cloudsql:user: admin 
-  cloudsql:database: mlop
   

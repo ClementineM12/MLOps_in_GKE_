@@ -54,7 +54,6 @@ func configureSAIAMPolicy(
 	if err != nil {
 		return err
 	}
-
 	policyData := string(policyBytes)
 
 	// Create the IAM policy for the service account.

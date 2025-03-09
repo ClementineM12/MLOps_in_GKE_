@@ -16,14 +16,15 @@ func createCloudSQL(
 	cloudRegion *global.CloudRegion,
 	gcpNetwork *compute.Network,
 	dependencies []pulumi.Resource,
-) (*sql.DatabaseInstance, error) {
+) (*sql.DatabaseInstance, []pulumi.Resource, error) {
 
 	projectNamePrefix := projectConfig.ResourceNamePrefix
 	databaseInstancePrefix := projectConfig.CloudSQL.InstancePrefixName
-
+	cloudSQLdependencies := []pulumi.Resource{}
 	resourceName := fmt.Sprintf("%s-%s-db-instance", projectNamePrefix, databaseInstancePrefix)
+
 	dbInstance, err := sql.NewDatabaseInstance(ctx, resourceName, &sql.DatabaseInstanceArgs{
-		Name:               pulumi.Sprintf(fmt.Sprintf("%s-db-instance", databaseInstancePrefix)),
+		Name:               pulumi.Sprintf("%s-db-instance", databaseInstancePrefix),
 		DatabaseVersion:    pulumi.String("POSTGRES_14"),
 		Project:            pulumi.String(projectConfig.ProjectId),
 		Region:             pulumi.String(cloudRegion.Region),
@@ -38,23 +39,26 @@ func createCloudSQL(
 		},
 	}, pulumi.DependsOn(dependencies))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	database, err := createDatabase(ctx, projectConfig, dbInstance)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	randomPassword, err := createUser(ctx, projectConfig, dbInstance, database)
+	randomPassword, databaseUser, err := createUser(ctx, projectConfig, dbInstance, database)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	projectConfig.CloudSQL.DatabaseName = database.Name
 	projectConfig.CloudSQL.InstanceName = dbInstance.Name
 	projectConfig.CloudSQL.Connection = dbInstance.FirstIpAddress
 	projectConfig.CloudSQL.Password = randomPassword.Result
 
-	return dbInstance, nil
+	cloudSQLdependencies = append(cloudSQLdependencies, database, databaseUser)
+
+	return dbInstance, cloudSQLdependencies, nil
 }
 
 func createDatabase(
@@ -78,7 +82,7 @@ func createUser(
 	projectConfig global.ProjectConfig,
 	dbInstance *sql.DatabaseInstance,
 	database *sql.Database,
-) (*random.RandomPassword, error) {
+) (*random.RandomPassword, *sql.User, error) {
 
 	username := projectConfig.CloudSQL.User
 	projectNamePrefix := projectConfig.ResourceNamePrefix
@@ -91,16 +95,20 @@ func createUser(
 		Special: pulumi.Bool(false),
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Create the user
 	resourceName = fmt.Sprintf("%s-%s-db-%s-user", projectNamePrefix, databaseInstancePrefix, username)
-	if _, err = sql.NewUser(ctx, resourceName, &sql.UserArgs{
+	databaseUser, err := sql.NewUser(ctx, resourceName, &sql.UserArgs{
 		Instance: dbInstance.ID(),
 		Name:     pulumi.String(username),
 		Password: randomPassword.Result,
-	}, pulumi.DependsOn([]pulumi.Resource{database, dbInstance})); err != nil {
-		return nil, err
+	},
+		pulumi.DependsOn([]pulumi.Resource{database, dbInstance}),
+		pulumi.Protect(false),
+	)
+	if err != nil {
+		return nil, nil, err
 	}
-	return randomPassword, nil
+	return randomPassword, databaseUser, nil
 }

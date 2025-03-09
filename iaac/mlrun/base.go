@@ -23,6 +23,8 @@ var (
 	helmChart        = "mlrun-ce"
 	helmChartVersion = "0.7.3"
 	helmChartRepo    = "https://mlrun.github.io/ce"
+	bucketName       = "mlrun-project-bucket-01"
+	registryName     = "mlrun"
 )
 
 func CreateMLRunResources(
@@ -40,12 +42,15 @@ func CreateMLRunResources(
 		CertManager:       true,
 		NginxIngress:      true,
 		CertManagerIssuer: true,
-		Certificate:       false,
+		Certificate:       true,
 		Domain:            domain,
 		Ingress:           false,
 	}
+	artifactRegistryConfig := global.ArtifactRegistryConfig{
+		RegistryName: registryName,
+	}
 
-	registry, err := registry.CreateArtifactRegistry(ctx, projectConfig, registryName, pulumi.DependsOn([]pulumi.Resource{}))
+	registry, err := registry.CreateArtifactRegistry(ctx, projectConfig, artifactRegistryConfig, pulumi.DependsOn([]pulumi.Resource{}))
 	if err != nil {
 		return err
 	}

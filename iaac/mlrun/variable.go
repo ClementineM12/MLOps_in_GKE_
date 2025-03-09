@@ -8,8 +8,6 @@ import (
 var (
 	registrySecretName = "gcr-registry-credentials"
 	// serviceAccountSecretName = "mlrun-sa-credentials"
-	bucketName   = "mlrun-project-bucket-01"
-	registryName = "mlrun-artifacts"
 
 	MLRunIAM = map[string]iam.IAM{
 		"mlrun": {

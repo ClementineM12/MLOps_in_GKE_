@@ -43,7 +43,7 @@ func Configuration(
 func configureNodePools(ctx *pulumi.Context) NodePoolConfigs {
 	// Initialize NodePoolConfig with defaults.
 	defaultNodePool := NodePoolConfig{
-		MachineType:  "e2-highmem-2", // change to "e2-standard-4"
+		MachineType:  "e2-standard-4",
 		DiskSizeGb:   100,
 		MaxNodeCount: 5,
 		DiskType:     "pd-standard",

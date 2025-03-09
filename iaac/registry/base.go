@@ -6,46 +6,44 @@ import (
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/artifactregistry"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
 
 // CreateArtifactRegistry sets up an Artifact Registry and Workload Identity Federation for GitHub Actions
 func CreateArtifactRegistry(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	registryName string,
+	artifactRegistry global.ArtifactRegistryConfig,
 	opts ...pulumi.ResourceOption,
 ) (*artifactregistry.Repository, error) {
 
-	githubRepo := config.Get(ctx, "ar:githubRepo")
-
-	registry, err := createRegistry(ctx, projectConfig, registryName, opts...)
+	artifactRegistry = global.ConfigureArtifactRegistry(ctx, artifactRegistry)
+	registry, err := createRegistry(ctx, projectConfig, artifactRegistry, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Artifact Registry: %w", err)
 	}
 
 	registry.ID().ApplyT(func(_ string) error {
-		if config.GetBool(ctx, "ar:githubSACreate") {
+		if artifactRegistry.GithubServiceAccountCreate {
 			// Create a Workload Identity Pool
-			wifPool, err := createWorkloadIdentityPool(ctx, projectConfig)
+			wifPool, err := createWorkloadIdentityPool(ctx, projectConfig, artifactRegistry)
 			if err != nil {
 				return fmt.Errorf("failed to create Workload Identity Pool: %w", err)
 			}
-			wifProvider, err := createWorkloadIdentityPoolProvider(ctx, projectConfig, wifPool, githubRepo)
+			wifProvider, err := createWorkloadIdentityPoolProvider(ctx, projectConfig, artifactRegistry, wifPool)
 			if err != nil {
 				return fmt.Errorf("failed to create Workload Identity Provider: %w", err)
 			}
 
 			// Create a Service Account
-			githubServiceAccount, serviceAccountMember, err := createGithubServiceAccount(ctx, projectConfig)
+			githubServiceAccount, serviceAccountMember, err := createGithubServiceAccount(ctx, projectConfig, artifactRegistry)
 			if err != nil {
 				return fmt.Errorf("failed to create Service Account: %w", err)
 			}
-			err = createGithubServiceAccountIAMBinding(ctx, projectConfig, githubServiceAccount.ID(), wifPool, githubRepo)
+			err = createGithubServiceAccountIAMBinding(ctx, projectConfig, artifactRegistry, githubServiceAccount.ID(), wifPool)
 			if err != nil {
 				return fmt.Errorf("failed to bind IAM role to Service Account: %w", err)
 			}
-			err = createRegistryIAMMember(ctx, projectConfig, githubServiceAccount, serviceAccountMember)
+			err = createRegistryIAMMember(ctx, projectConfig, artifactRegistry, githubServiceAccount, serviceAccountMember)
 			if err != nil {
 				return fmt.Errorf("failed to assign Artifact Registry writer role: %w", err)
 			}
@@ -54,8 +52,8 @@ func CreateArtifactRegistry(
 			ctx.Export("githubServiceAccountEmail", githubServiceAccount.Email)
 		}
 
-		if config.GetBool(ctx, "ar:cdSACreate") {
-			cdServiveAccount, err := createRegistryServiceAccount(ctx, projectConfig)
+		if artifactRegistry.ContinuousDevelopmentServiceAccountCreate {
+			cdServiveAccount, err := createRegistryServiceAccount(ctx, projectConfig, artifactRegistry)
 			if err != nil {
 				return err
 			}

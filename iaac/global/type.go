@@ -26,6 +26,7 @@ type ProjectConfig struct {
 	CloudSQL           *CloudSQLConfig
 	Email              string
 	WhitelistedIPs     string
+	ArtifactRegistry   ArtifactRegistryConfig
 }
 
 type CloudRegion struct {
@@ -46,4 +47,12 @@ type CloudSQLConfig struct {
 	InstanceName       pulumi.StringOutput
 	Connection         pulumi.StringOutput
 	Password           pulumi.StringOutput
+	DatabaseName       pulumi.StringOutput
+}
+
+type ArtifactRegistryConfig struct {
+	GithubRepo                                string
+	RegistryName                              string
+	GithubServiceAccountCreate                bool
+	ContinuousDevelopmentServiceAccountCreate bool
 }

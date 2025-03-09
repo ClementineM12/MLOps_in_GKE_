@@ -14,10 +14,11 @@ userSettings:
   DatacatalogServiceAccount: &DatacatalogServiceAccount ${DatacatalogServiceAccount}
   WorkersServiceAccount: &WorkersServiceAccount ${WorkersServiceAccount}
 
-  dbName: &dbName flyte
-  dbUsername: &dbUsername flyteadmin
+  dbName: &dbName ${dbName}
+  dbUsername: &dbUsername ${dbUsername}
 
   whitelistedIPs: &whitelistedIPs ${whitelistedIPs}
+  letsEncrypt: &LetsEncrypt ${LetsEncrypt}
 
 flyteadmin:
   replicaCount: 1
@@ -148,17 +149,14 @@ workflow_notifications:
 
 common:
   ingress:
-    ingressClassName: "nginx"
     host: *hostName
     tls:
       enabled: true
-      secretName: flyte-secret-tls
     annotations:
       kubernetes.io/ingress.class: nginx
       ingress.kubernetes.io/rewrite-target: /
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      cert-manager.io/issuer: "letsencrypt-production"
-      acme.cert-manager.io/http01-edit-in-place: "true"
+      cert-manager.io/issuer: *LetsEncrypt
       nginx.ingress.kubernetes.io/whitelist-source-range: *whitelistedIPs
     # --- separateGrpcIngress puts GRPC routes into a separate ingress if true. Required for certain ingress controllers like nginx.
     separateGrpcIngress: true

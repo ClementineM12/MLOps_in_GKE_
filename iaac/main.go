@@ -9,7 +9,6 @@ import (
 	"mlops/gke"
 	"mlops/global"
 	"mlops/mlrun"
-	"mlops/registry"
 	"mlops/storage"
 	"mlops/vpc"
 
@@ -21,14 +20,11 @@ import (
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		projectConfig := global.GenerateProjectConfig(ctx)
-		gcpDependencies := global.EnableGCPServices(ctx, projectConfig)
+		global.EnableGCPServices(ctx, projectConfig)
 
 		if config.GetBool(ctx, "storage:create") {
 			bucketName := config.Get(ctx, "storage:name")
 			storage.CreateObjectStorage(ctx, projectConfig, bucketName)
-		}
-		if config.GetBool(ctx, "ar:create") {
-			registry.CreateArtifactRegistry(ctx, projectConfig, "", pulumi.DependsOn(gcpDependencies))
 		}
 
 		if err := CreateProjectResources(ctx, projectConfig); err != nil {

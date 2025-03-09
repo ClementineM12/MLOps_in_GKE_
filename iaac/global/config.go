@@ -18,9 +18,6 @@ func GenerateProjectConfig(
 		whitelistedIPs = "0.0.0.0/0"
 	}
 
-	// Validate
-	validateArtifactRegistryConfig(ctx)
-
 	return ProjectConfig{
 		ResourceNamePrefix: configureResourcePrefix(ctx),
 		ProjectId:          configureProjectId(ctx),
@@ -81,6 +78,21 @@ func configureSSL(
 	}
 }
 
+func ConfigureArtifactRegistry(
+	ctx *pulumi.Context,
+	ArtifactRegistryConfig ArtifactRegistryConfig,
+) ArtifactRegistryConfig {
+
+	if ArtifactRegistryConfig.GithubServiceAccountCreate {
+		githubRepo := config.Get(ctx, "ar:githubRepo")
+		if githubRepo == "" {
+			ctx.Log.Error("Artifact Registry is enabled; provide a GitHub Repository configuration 'ar:githubRepo'.", nil)
+		}
+		ArtifactRegistryConfig.GithubRepo = githubRepo
+	}
+	return ArtifactRegistryConfig
+}
+
 // configureRegions separates regions into enabled and not enabled
 func configureRegions(
 	ctx *pulumi.Context,
@@ -104,19 +116,6 @@ func configureRegions(
 	fmt.Printf("\033[1;32m[INFO] - Processing Cloud Regions: [ %s ]\n\033[0m", formatRegions(enabledRegions))
 
 	return enabledRegions
-}
-
-func validateArtifactRegistryConfig(
-	ctx *pulumi.Context,
-) {
-
-	create := config.GetBool(ctx, "ar:create")
-	if create {
-		githubRepo := config.Get(ctx, "ar:githubRepo")
-		if githubRepo == "" {
-			ctx.Log.Error("Artifact Registry is enabled; provide a GitHub Repository configuration 'ar:githubRepo'.", nil)
-		}
-	}
 }
 
 func getCloudSQLConfig(

@@ -18,23 +18,23 @@ func createKubernetesResources(
 	infraComponents infracomponents.InfraComponents,
 	k8sProvider *kubernetes.Provider,
 	cloudSQL *sql.DatabaseInstance,
-) ([]pulumi.Resource, error) {
+) ([]pulumi.Resource, string, error) {
 
 	dependencies := []pulumi.Resource{}
 	_, err := createFlyteNamespace(ctx, projectConfig, k8sProvider)
 	if err != nil {
-		return dependencies, err
+		return dependencies, "", err
 	}
-	dependencies, _, err = infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
+	dependencies, LetsEncrypt, err := infracomponents.CreateInfraComponents(ctx, projectConfig, namespace, k8sProvider, infraComponents)
 	if err != nil {
-		return dependencies, err
+		return dependencies, "", err
 	}
 
 	dependsOn := append(dependencies,
 		cloudSQL,
 	)
 
-	return dependsOn, nil
+	return dependsOn, LetsEncrypt, nil
 }
 
 func createFlyteNamespace(

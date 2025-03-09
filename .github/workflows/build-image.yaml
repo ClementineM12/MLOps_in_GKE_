@@ -1,0 +1,57 @@
+name: Build Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      dockerfile:
+        required: true 
+        type: choice
+        default: flyte
+        options:
+          - flyte
+          - kubeflow
+
+
+env: 
+    REGION: ${{ vars.REGION }}
+    SERVICE_ACCOUNT: github-svc@mlops-development-project.iam.gserviceaccount.com
+    ACCESS_TOKEN_LIFETIME: 200s
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: [ ubuntu-latest ] 
+    permissions:
+      contents: read
+      id-token: write  # Needed for Workload Identity Federation
+    env: 
+        DOCKERFILE_PATH: "ml/${{ github.event.inputs.dockerfile }}"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        id: auth
+        with:
+          token_format: 'access_token'
+          project_id: ${{ secrets.PROJECT_ID }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          access_token_lifetime: ${{ env.ACCESS_TOKEN_LIFETIME }}
+
+      - name: Docker Auth
+        id: docker-auth
+        uses: 'docker/login-action@v1'
+        with:
+          username: 'oauth2accesstoken'
+          password: '${{steps.auth.outputs.credentials_file_path}}'
+          registry: '${{ env.REGION }}-docker.pkg.dev'
+
+      - name: Build and Push Docker Image
+        env: 
+            REGISTRY: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}
+            REPOSITORY: ${{ env.DOCKERFILE_PATH }}
+            IMAGE_TAG: latest
+        run: |-
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG ./${{ env.DOCKERFILE_PATH }} --push
+

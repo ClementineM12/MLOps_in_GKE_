@@ -12,7 +12,7 @@ import (
 func createRegistry(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	registryName string,
+	ArtifactRegistry global.ArtifactRegistryConfig,
 	opts ...pulumi.ResourceOption,
 ) (*artifactregistry.Repository, error) {
 
@@ -23,10 +23,11 @@ func createRegistry(
 		region = "europe"
 	}
 
+	registryName := ArtifactRegistry.RegistryName
 	if registryName == "" {
 		registryName = "artifacts"
 	}
-	resourceName := fmt.Sprintf("%s-artifacts-registry", projectConfig.ResourceNamePrefix)
+	resourceName := fmt.Sprintf("%s-%s-registry", projectConfig.ResourceNamePrefix, registryName)
 	registry, err := artifactregistry.NewRepository(ctx, resourceName, &artifactregistry.RepositoryArgs{
 		Project:      pulumi.String(projectConfig.ProjectId),
 		Location:     pulumi.String(region),

@@ -83,17 +83,17 @@ func certificateYAML(
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: mlrun-tls-cert
+  name: %s-tls-cert
   namespace: %s
 spec:
-  secretName: mlrun-secret-tls
+  secretName: %s-secret-tls
   issuerRef:
     name: %s
     kind: Issuer
   commonName: %s
   dnsNames:
     - %s
-`, namespace, LetsEncrypt, DNS, DNS)
+`, namespace, namespace, namespace, LetsEncrypt, DNS, DNS)
 
 	return map[string]string{
 		"certificate": certYAML,

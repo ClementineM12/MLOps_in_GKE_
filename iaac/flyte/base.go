@@ -6,6 +6,7 @@ import (
 	"mlops/global"
 	"mlops/iam"
 	infracomponents "mlops/infra_components"
+	"mlops/registry"
 	"mlops/storage"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
@@ -15,12 +16,15 @@ import (
 )
 
 var (
+	deploy = true
+
 	application      = "flyte"
 	namespace        = "flyte"
-	deploy           = true
 	helmChart        = "flyte-core"
 	helmChartVersion = "v1.15.0"
 	helmChartRepo    = "https://flyteorg.github.io/flyte"
+	bucketName       = "flyte-project-bucket-01"
+	registryName     = "flyte"
 )
 
 func CreateFlyteResources(
@@ -30,30 +34,62 @@ func CreateFlyteResources(
 	k8sProvider *kubernetes.Provider,
 	gcpNetwork *compute.Network,
 ) error {
+	// Construct the domain.
 	domain := fmt.Sprintf("%s.%s", application, projectConfig.Domain)
+	var dependencies []pulumi.Resource
+
+	// Assign the CloudSQL configuration.
+	projectConfig.CloudSQL = &cloudSQLConfig
+
 	infraComponents := infracomponents.InfraComponents{
-		CertManager:  true,
-		NginxIngress: true,
-		Domain:       domain,
+		CertManager:       true,
+		NginxIngress:      true,
+		Domain:            domain,
+		CertManagerIssuer: true,
 	}
+	artifactRegistryConfig := global.ArtifactRegistryConfig{
+		RegistryName:               registryName,
+		GithubServiceAccountCreate: true,
+	}
+
+	// Create IAM resources.
 	serviceAccounts, err := iam.CreateIAMResources(ctx, projectConfig, FlyteIAM)
 	if err != nil {
 		return err
 	}
-	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, "flyte-project-bucket-01")
-	cloudSQL, err := cloudsql.DeployCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork)
+
+	// Create the GCS bucket for object storage.
+	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
+
+	_, err = registry.CreateArtifactRegistry(ctx, projectConfig, artifactRegistryConfig, pulumi.DependsOn([]pulumi.Resource{}))
 	if err != nil {
 		return err
 	}
-	dependencies, err := createKubernetesResources(ctx, projectConfig, infraComponents, k8sProvider, cloudSQL)
+	// Deploy CloudSQL and obtain its dependencies.
+	cloudSQL, cloudSQLDependencies, err := cloudsql.DeployCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork)
 	if err != nil {
 		return err
 	}
+
+	// Create other Kubernetes resources (e.g., ingress, certificates).
+	kubernetesDependencies, letsEncrypt, err := createKubernetesResources(ctx, projectConfig, infraComponents, k8sProvider, cloudSQL)
+	if err != nil {
+		return err
+	}
+
+	// If deploying Flyte core, add the dependencies and call the deployment.
 	if deploy {
-		if err = deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket.Name, domain, serviceAccounts, dependencies); err != nil {
+		// Append the Kubernetes and CloudSQL dependencies to our dependencies slice.
+		dependencies = append(dependencies, kubernetesDependencies...)
+		dependencies = append(dependencies, cloudSQLDependencies...)
+
+		// Deploy Flyte core, ensuring it waits for the dependencies.
+		if err := deployFlyteCore(ctx, projectConfig, k8sProvider, gcsBucket.Name, domain, serviceAccounts, letsEncrypt, dependencies); err != nil {
 			return err
 		}
 	}
+
+	// Configure the Service Account IAM policy.
 	configureSAIAMPolicy(ctx, projectConfig, serviceAccounts)
 
 	return nil
@@ -66,6 +102,7 @@ func deployFlyteCore(
 	gcsBucket pulumi.StringInput,
 	domain string,
 	serviceAccounts map[string]iam.ServiceAccountInfo,
+	letsEncrypt string,
 	dependencies []pulumi.Resource,
 ) error {
 	// Wait for all service account emails to resolve.
@@ -79,6 +116,7 @@ func deployFlyteCore(
 		gcsBucket,
 		projectConfig.CloudSQL.Connection,
 		projectConfig.CloudSQL.Password,
+		projectConfig.CloudSQL.DatabaseName,
 	).ApplyT(func(vals []interface{}) (interface{}, error) {
 		adminEmail := vals[0].(string)
 		propellerEmail := vals[1].(string)
@@ -88,6 +126,7 @@ func deployFlyteCore(
 		gcsBucket := vals[5].(string)
 		dbHost := vals[6].(string)
 		dbPassword := vals[7].(string)
+		dbName := vals[8].(string)
 
 		// Path to the values.yaml file.
 		valuesFilePath := "../helm/flyte/values/values.yaml"
@@ -103,7 +142,10 @@ func deployFlyteCore(
 			"SchedulerServiceAccount":   schedulerEmail,
 			"DatacatalogServiceAccount": datacatalogEmail,
 			"WorkersServiceAccount":     workersEmail,
+			"dbName":                    dbName,
+			"dbUsername":                projectConfig.CloudSQL.User,
 			"whitelistedIPs":            projectConfig.WhitelistedIPs,
+			"LetsEncrypt":               letsEncrypt,
 		}
 
 		// Get the substituted values map.

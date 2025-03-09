@@ -85,7 +85,6 @@ func createGKE(
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create Kubernetes Provider configuration: %w", err)
 	}
-
 	return gcpGKECluster, k8sProvider, nil
 }
 
