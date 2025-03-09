@@ -1,5 +1,7 @@
-from flytekit import task, workflow, dynamic, PodTemplate
+from flytekit import task, workflow, dynamic, PodTemplate, Resources
 from kubernetes import client
+from kubernetes.client.models import V1Container, V1PodSpec, V1ResourceRequirements
+from flytekitplugins.pod import Pod
 
 import functions.load as load
 import functions.process as process
@@ -49,8 +51,38 @@ def getPodTemplate(label: Literal["highmem", "highcpu"]):
     )
 )
 
+def getPodSpec(label: Literal["highmem", "highcpu"]):
+    mapResources = {
+        "highmem": {
+            "requests": {"cpu": "2", "memory": "8Gi"},
+            "limits": {"cpu": "4", "memory": "32Gi"}
+        },
+        "highcpu": {
+            "requests": {"cpu": "4", "memory": "8Gi"},
+            "limits": {"cpu": "16", "memory": "32Gi"}
+        }
+    }
+    return Pod(
+        pod_spec=V1PodSpec(
+            containers=[
+                V1Container(
+                    name="primary",
+                    resources=V1ResourceRequirements(
+                        requests=mapResources[label]["requests"],
+                        limits=mapResources[label]["limits"],
+                    ),
+                )
+            ],
+        ),
+    ),
+
 # TASK 1: Fetch dataset
-@task(container_image=base_image_ref, pod_template=getPodTemplate("highmem"), name="fetch_dataset")
+@task(
+    task_config=getPodSpec("highmem"),
+    pod_template=getPodTemplate("highmem"),
+    container_image=base_image_ref, 
+    name="fetch_dataset",
+)
 def fetch_dataset_task() -> None:
     load.fetch_dataset(
         retrieved_metadata_filename=retrieved_metadata_filename, 
@@ -62,7 +94,12 @@ def fetch_dataset_task() -> None:
     return
 
 # TASK 2: Process metadata and images
-@task(container_image=base_image_ref, pod_template=getPodTemplate("highmem"), name="process_metadata_and_images")
+@task(
+    task_config=getPodSpec("highmem"),
+    pod_template=getPodTemplate("highmem"),
+    container_image=base_image_ref, 
+    name="process_metadata_and_images",
+)
 def process_task(sample: int) -> None:
     process.process_metadata(
         metadata_filename=metadata_filename,
@@ -81,7 +118,12 @@ def process_task(sample: int) -> None:
     return
 
 # TASK 3: Feature Engineering
-@task(container_image=base_image_ref, pod_template=getPodTemplate("highmem"), name="feature_engineering")
+@task(
+    task_config=getPodSpec("highmem"),
+    pod_template=getPodTemplate("highmem"),
+    container_image=base_image_ref, 
+    name="feature_engineering",
+)
 def feature_engineering_task() -> None:
     feature_engineering.feature_engineer(
         bucket=bucket_name,
@@ -91,7 +133,12 @@ def feature_engineering_task() -> None:
     return
 
 # TASK 4: Train Random Forest
-@task(container_image=base_image_ref, pod_template=getPodTemplate("highcpu"), name="train_random_forest")
+@task(
+    task_config=getPodSpec("highcpu"),
+    pod_template=getPodTemplate("highcpu"),
+    container_image=base_image_ref, 
+    name="train_random_forest",
+)
 def train_random_forest_task() -> None:
     model.train_random_forest(
         bucket=bucket_name,
@@ -100,7 +147,12 @@ def train_random_forest_task() -> None:
     )
 
 # TASK 4: Train CNN
-@task(container_image=base_image_ref, pod_template=getPodTemplate("highcpu"), name="train_cnn")
+@task(
+    task_config=getPodSpec("highcpu"),
+    pod_template=getPodTemplate("highcpu"),
+    container_image=base_image_ref, 
+    name="train_cnn",
+)
 def train_cnn_task(sample: int, batch_size: int = 32, epochs: int = 10) -> None:
     model.train_cnn(
         bucket=bucket_name,

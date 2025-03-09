@@ -54,7 +54,6 @@ def fetch_dataset(
                 try:
                     blob = bucket_obj.blob(object_name)
                     blob.upload_from_filename(local_image_path)
-                    print(f"Uploaded image: {object_name}")
                 except Exception as err:
                     print(f"Error uploading image {image_file}: {err}")
                     raise
