@@ -50,7 +50,7 @@ jobs:
       - name: Build and Push Docker Image
         env: 
             REGISTRY: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}
-            REPOSITORY: ${{ env.DOCKERFILE_PATH }}
+            REPOSITORY: ${{ github.event.inputs.dockerfile }}
             IMAGE_TAG: latest
         run: |-
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG ./${{ env.DOCKERFILE_PATH }} --push
