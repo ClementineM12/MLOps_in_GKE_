@@ -355,8 +355,6 @@ cluster_resource_manager:
             # Needed for gcp workload identity to function
             # https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity
             iam.gke.io/gcp-service-account: {{ gsa }}
-        imagePullSecrets: 
-          - name: gcr-registry-credentials
 
     - key: ab_project_resource_quota
       value: |

@@ -15,7 +15,7 @@ on:
 env: 
     REGION: ${{ vars.REGION }}
     SERVICE_ACCOUNT: github-svc@mlops-development-project.iam.gserviceaccount.com
-    ACCESS_TOKEN_LIFETIME: 200s
+    ACCESS_TOKEN_LIFETIME: 1000s
 
 jobs:
   build-and-push:

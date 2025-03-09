@@ -11,7 +11,9 @@ import (
 
 	"github.com/pulumi/pulumi-gcp/sdk/v7/go/gcp/compute"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
+	coreV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/helm/v3"
+	metaV1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
@@ -180,5 +182,27 @@ func deployFlyteCore(
 		}
 		return nil, nil
 	})
+
+	for _, namespace := range flyteNamespaces {
+		resourceName := fmt.Sprintf("%s-%s-default-sa-patch", projectConfig.ResourceNamePrefix, namespace)
+		_, err := coreV1.NewServiceAccountPatch(ctx, resourceName, &coreV1.ServiceAccountPatchArgs{
+			Metadata: &metaV1.ObjectMetaPatchArgs{
+				Name:      pulumi.String("default"),
+				Namespace: pulumi.String(namespace),
+			},
+			ImagePullSecrets: coreV1.LocalObjectReferencePatchArray{
+				coreV1.LocalObjectReferencePatchArgs{
+					Name: pulumi.String(registrySecretName),
+				},
+			},
+		},
+			pulumi.DependsOn(dependencies),
+			pulumi.Provider(k8sProvider),
+			pulumi.Protect(true),
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

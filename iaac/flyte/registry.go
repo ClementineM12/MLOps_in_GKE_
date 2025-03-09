@@ -65,8 +65,7 @@ func createDockerRegistrySecret(
 		return encodedData, nil
 	}).(pulumi.StringOutput)
 
-	namespaces := createFlyteNamespaces()
-	for _, namespace := range namespaces {
+	for _, namespace := range flyteNamespaces {
 		resourceName := fmt.Sprintf("%s-%s-gcr-creds", projectConfig.ResourceNamePrefix, namespace)
 		_, err := coreV1.NewSecret(ctx, resourceName, &coreV1.SecretArgs{
 			Metadata: &metaV1.ObjectMetaArgs{
@@ -80,6 +79,7 @@ func createDockerRegistrySecret(
 		},
 			pulumi.Provider(k8sProvider),
 			pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}),
+			pulumi.Protect(true),
 		)
 		if err != nil {
 			return err

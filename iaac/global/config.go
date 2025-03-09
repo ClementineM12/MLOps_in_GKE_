@@ -61,7 +61,7 @@ func configureResourcePrefix(
 			ctx.Log.Error(fmt.Sprintf("Prefix '%s' must be less than 5 characters in length.", resourceNamePrefix), nil)
 			return ""
 		}
-		fmt.Printf("\033[1;32m[INFO] - Prefix '%s' has been provided; All Google Cloud resource names will be prefixed.\n\033[0m", resourceNamePrefix)
+		fmt.Printf("\033[1;32m[INFO] Prefix '%s' has been provided; All Google Cloud resource names will be prefixed.\n\033[0m", resourceNamePrefix)
 	}
 	return resourceNamePrefix
 }
@@ -73,8 +73,8 @@ func configureSSL(
 
 	// Review Domain & SSL Configuration
 	if domain != "" {
-		fmt.Printf("\033[1;32m[INFO] - Domain '%s' has been provided; SSL Certificates will be configured for this domain.\n\033[0m", domain)
-		fmt.Printf("\033[1;32m[INFO] - The DNS for the domain: '%s' must be configured to point to the IP Address of the Global Load Balancer.\n\033[0m", domain)
+		fmt.Printf("\033[1;32m[INFO] Domain '%s' has been provided; SSL Certificates will be configured for this domain.\n\033[0m", domain)
+		fmt.Printf("\033[1;32m[INFO] The DNS for the domain: '%s' must be configured to point to the IP Address of the Global Load Balancer.\n\033[0m", domain)
 		return true
 	} else {
 		ctx.Log.Warn("No Domain has been provided; HTTPS will not be enabled for this deployment.", nil)
@@ -117,7 +117,7 @@ func configureRegions(
 			ctx.Log.Warn(fmt.Sprintf("Region ID %s does not exist in predefined Cloud Regions.", regionId), nil)
 		}
 	}
-	fmt.Printf("\033[1;32m[INFO] - Processing Cloud Regions: [ %s ]\n\033[0m", formatRegions(enabledRegions))
+	fmt.Printf("\033[1;32m[INFO] Processing Cloud Regions: [ %s ]\n\033[0m", formatRegions(enabledRegions))
 
 	return enabledRegions
 }
@@ -156,7 +156,7 @@ func ValidateMLOpsTarget(
 			ctx.Log.Error(fmt.Sprintf("Target MLOps tool is not included in the Allowlist: %s", formatListIntoString(MLOpsAllowedTargets)), nil)
 		}
 		caser := cases.Title(language.English)
-		fmt.Printf("\033[1;32m[INFO] - MLOps tool targeted for deployment; %s\n\033[0m", caser.String(target))
+		fmt.Printf("\033[1;32m[INFO] MLOps tool targeted for deployment; %s\n\033[0m", caser.String(target))
 	}
 }
 

@@ -8,10 +8,12 @@ import (
 )
 
 var (
-	registrySecretName = "gcr-registry-credentials" // This is used in the values hardscoded so don't change
+	registrySecretName = "gcr-registry-credentials"
 
 	flyteProjects = []string{"flytesnacks"}
 	flyteDomains  = []string{"development", "staging", "production"}
+
+	flyteNamespaces = createFlyteNamespaces()
 
 	FlyteIAM = map[string]iam.IAM{
 		"flyteadmin": {
