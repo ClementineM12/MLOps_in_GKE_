@@ -73,6 +73,7 @@ func CreateFlyteResources(
 
 	// Create the GCS bucket for object storage.
 	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
+	// storage.CreateObjectStorage(ctx, projectConfig, "flyte-data-01")
 	// Deploy CloudSQL and obtain its dependencies.
 	cloudSQL, cloudSQLDependencies, err := cloudsql.DeployCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork)
 	if err != nil {

@@ -27,8 +27,31 @@ The infrastructure includes:
 ## Deploy Infrastructure
 
 Create a configuration file for pulumi ( e.g. `Pulumi.development.yaml` )
-First, create and deploy your **IaC resources**:
 
+First, create and deploy your **IaC resources**:
+```yaml
+config:
+  gcp:project: <project_id>
+
+  project:prefix: <prefix_for_resources>
+  project:target: <mlop_tool_target_to_deploy>
+
+  project:domain: <your_domain>
+  project:email: <your_email>
+  project:whitelistedIPs: <IPs_to_whitelist_for_ingress>
+  project:githubRepo: <your_GitHub_repository>
+
+  vpc:regions: "007" # <- This is selected in order to have the option of using NodePools with GPU acceleration
+  vpc:loadBalancer: false # Not configured end-to-end
+  vpc.autoNEG: false # Working but not totally configured with the Networking
+
+  gke:privateNodes: true
+
+  gke:managementAutoRepair: true
+  gke:managementAutoUpgrade: true
+```
+
+Upon reading the `docs/docs.md` and have configured what is necessary proceed with building your Infrastructure:
 ```sh
 cd iaac
 pulumi up

@@ -9,7 +9,7 @@ import functions.model as model
 from typing import Literal
 
 retrieved_metadata_filename = "HAM10000_metadata.csv" 
-bucket_name = "flyte-data" 
+bucket_name = "flyte-data-01" 
 data_path = "data"
 processed_data_path = "processed_data"
 metadata_filename = "metadata.pkl"

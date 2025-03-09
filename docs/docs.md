@@ -44,7 +44,7 @@ For network setup, the roles required are:
   - roles/compute.securityAdmin: For managing firewall rules.
   - roles/compute.viewer: For viewing existing network configurations.
 
-3. **IAM Roles for Kubeflow and Storage**
+3. **IAM Roles for Storage**
 
 Kubeflow requires permissions for Kubernetes resources and Google Cloud services (like GCS and IAM):
 
@@ -52,7 +52,7 @@ Kubeflow requires permissions for Kubernetes resources and Google Cloud services
   - roles/storage.admin: For managing buckets and objects in GCS.
   - roles/storage.objectAdmin: For accessing objects in GCS.
 
-**IAM and Kubernetes Roles**:
+**IAM**:
   - roles/iam.serviceAccountAdmin: To manage service accounts used by Kubeflow.
   - `Kubernetes Engine Admin`/`roles/container.clusterAdmin`: To administer Kubernetes clusters.
   - roles/container.developer: To manage Kubernetes applications.
