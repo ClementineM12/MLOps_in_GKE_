@@ -10,3 +10,4 @@ seaborn
 tensorflow~=2.16.0
 keras
 scikit-learn
+kubernetes
