@@ -18,9 +18,6 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copy the rest of your application code into the container
 COPY . .
 
-# Set environment variable for GCP credentials (if needed)
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
-
 # Set the entrypoint to run your Flyte workflow
 # Adjust the command if your main file is named differently
 ENTRYPOINT ["python", "workflow.py"]
