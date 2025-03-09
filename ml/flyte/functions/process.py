@@ -1,5 +1,3 @@
-import os
-import io
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -7,9 +5,10 @@ from sklearn.utils import resample
 import cv2
 import numpy as np
 from PIL import Image
-from minio import Minio
-from minio.error import S3Error
 from io import BytesIO
+
+from google.cloud import storage
+import functions.glob as flyte_glob
 
 # Creating dictionary for displaying more human-friendly labels
 lesion_type_dict = {
@@ -21,62 +20,37 @@ lesion_type_dict = {
     'vasc': 'Vascular lesions',
     'df': 'Dermatofibroma'
 }
-# Create MinIO client
-minio_client = Minio(
-    "minio.mlrun.svc.cluster.local:9000",
-    access_key="mlrun",
-    secret_key="mlrun1234",
-    secure=False
-)
     
+
 def process_metadata(
     metadata_filename: str, 
-    source_bucket: str, 
-    processed_bucket: str,
+    bucket: str,
     images_dir: str,
-    processed_metadata_filename: str
-) -> str:
-    """
-    Process the skin metadata and images stored in a source MinIO bucket,
-    then upload the processed (segmented) images to another bucket.
-    
-    Args:
-        skin_meta_filename (str): The CSV file name containing metadata.
-        source_bucket (str): Name of the MinIO bucket with raw data.
-        processed_bucket (str): Name of the MinIO bucket for processed images.
-    """
-    
-    # Ensure that the processed bucket exists (create if necessary)
-    try:
-        bucket_exists = minio_client.bucket_exists(processed_bucket)
-    except S3Error as err:
-        print(f"Error checking bucket existence: {err}")
-        bucket_exists = False
-        
-    if not bucket_exists:
-        minio_client.make_bucket(processed_bucket)
-        print(f"Created processed bucket: {processed_bucket}")
-    else:
-        print(f"Processed bucket '{processed_bucket}' already exists.")
-
+    data_path: str,
+    processed_data_path: str
+) -> None:
     # Retrieve the metadata DataFrame from the bucket.
-    skin_meta = get_metadata_file(source_bucket, metadata_filename)
+    skin_meta = flyte_glob.get_metadata_file(bucket=bucket, metadata_filename=metadata_filename, data_path=data_path)
     
     # (Optional) Retrieve raw images from source bucket.
     # Assume that raw images are stored under a prefix "images/" and that the metadata CSV
     # has an 'image_id' column which corresponds to the filename (without extension).
-    def get_image_from_minio(image_id: str):
-        object_name = f"{images_dir}/{image_id}.jpg"
+    def get_image_from_gcs(image_id: str):
+        storage_client = storage.Client()
+
+        object_name = f"{data_path}/{images_dir}/{image_id}.jpg"
         try:
-            response = minio_client.get_object(source_bucket, object_name)
-            image = Image.open(BytesIO(response.read()))
+            src_bucket = storage_client.bucket(bucket)
+            blob = src_bucket.blob(object_name)
+            data = blob.download_as_bytes()
+            image = Image.open(BytesIO(data))
             return image
         except Exception as e:
             print(f"Error retrieving image '{object_name}': {e}")
             return None
 
     # Add a column with the downloaded PIL images
-    skin_meta['image'] = skin_meta['image_id'].apply(get_image_from_minio)
+    skin_meta['image'] = skin_meta['image_id'].apply(get_image_from_gcs)
     
     # Create additional columns for better understanding of features
     skin_meta['Cell type'] = skin_meta['dx'].map(lesion_type_dict.get)
@@ -88,102 +62,74 @@ def process_metadata(
     # Create a binary label for benign (0) and malignant (1) lesions.
     skin_meta = skin_meta.assign(label=skin_meta.apply(lesion_type, axis=1))
     
-    skin_meta['image'] = skin_meta['image_id'].apply(lambda img_id: convert_image_into_array(img_id, source_bucket=source_bucket, images_dir=images_dir))
+    skin_meta['image'] = skin_meta['image_id'].apply(
+        lambda img_id: convert_image_into_array(img_id, bucket=bucket, images_dir=images_dir)
+    )
 
-    put_metadata_file(skin_meta, processed_bucket, processed_metadata_filename)
+    flyte_glob.put_metadata_file(metadata=skin_meta, bucket=bucket, images_dir=images_dir, data_path=processed_data_path)
         
     
 def create_segmented_images(
-    processed_bucket: str, 
-    processed_metadata_filename: str,
-    n_samples: int = 2000, 
-):
-    skin_meta = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
-    print(f"Skin Image shape: {skin_meta['image'][0].shape}")
+    bucket: str, 
+    metadata_filename: str,
+    processed_data_path: str,
+    images_dir: str,
+    n_samples: int, 
+) -> None:
+    metadata = flyte_glob.get_metadata_file(
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=processed_data_path, 
+        target="pickle"
+    )
+    print(f"Skin Image shape: {metadata['image'][0].shape}")
     
-    balanced_data = create_balanced_dataset(skin_meta, n_samples)
+    balanced_data = create_balanced_dataset(metadata=metadata, n_samples=n_samples)
     
-    skin_data = create_segmented_pictures(balanced_data['image'], balanced_data, processed_bucket)
-    put_metadata_file(skin_data, processed_bucket, processed_metadata_filename)
+    skin_data = create_segmented_pictures(
+        images_array=balanced_data['image'], 
+        metadata=balanced_data, 
+        bucket=bucket,
+        data_path=processed_data_path,
+        images_dir=images_dir)
+    flyte_glob.put_metadata_file(
+        metadata=skin_data, 
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=processed_data_path
+    )
 
 
 def convert_image_into_array(
     image_id: str,
-    source_bucket: str,
+    bucket_name: str,
     images_dir: str, 
+    data_path: str,
 ) -> np.ndarray:
     """
-    Retrieves an image from a MinIO bucket and converts it into a NumPy array.
+    Retrieves an image from a GCS bucket and converts it into a NumPy array.
     
     Args:
         image_id (str): The unique identifier of the image (without extension).
+        bucket_name (str): The GCS bucket name.
         images_dir (str): The directory (prefix) where images are stored in the bucket.
+        data_path (str): The base path in the bucket where the images are stored.
         
     Returns:
         np.ndarray: The image as a NumPy array, or None if retrieval fails.
     """
-    object_name = f"{images_dir}/{image_id}.jpg"  # adjust if your path is different
+    # Build the full object name for the image.
+    object_name = f"{data_path}/{images_dir}/{image_id}.jpg"
     try:
-        response = minio_client.get_object(source_bucket, object_name)
-        image = Image.open(BytesIO(response.read()))
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+        data = blob.download_as_bytes()
+        image = Image.open(BytesIO(data))
         return np.asarray(image)
     except Exception as e:
         print(f"Error retrieving image '{object_name}': {e}")
         return None
-    
-def get_metadata_file(
-    bucket: str, 
-    metadata_filename: str,
-    target: str = "csv",
-) -> pd.DataFrame:
-    """
-    Retrieve the metadata CSV file from the source bucket.
-    """
-    try:
-        # Get the metadata file as an object from the source bucket.
-        response = minio_client.get_object(bucket, metadata_filename)
-        # Read all bytes from the response.
-        data = response.read()
-
-        # Process file based on the target type.
-        if target == "csv":
-            # Convert bytes to a file-like object and decode.
-            df = pd.read_csv(io.StringIO(data.decode('utf-8')))
-        elif target == "pickle":
-            # Use BytesIO to load the pickled DataFrame.
-            df = pd.read_pickle(io.BytesIO(data))
-        else:
-            raise ValueError(f"Unsupported target type: {target}")
-
-        print(f"Retrieved metadata file '{metadata_filename}' from bucket '{bucket}'.")
-        return df
-    except S3Error as err:
-        print(f"Error retrieving metadata file from bucket: {err}")
-        raise
-
-def put_metadata_file(
-    metadata: pd.DataFrame,
-    bucket: str, 
-    metadata_filename: str,
-    target: str = "pickle",
-):
-    pickle_bytes = BytesIO()
-    metadata.to_pickle(pickle_bytes)
-    pickle_bytes.seek(0)
-    pickle_length = pickle_bytes.getbuffer().nbytes
-    
-    try:
-        minio_client.put_object(
-            bucket, 
-            metadata_filename, 
-            pickle_bytes, 
-            pickle_length, 
-            content_type="application/octet-stream"
-        )
-        print(f"Uploaded processed metadata pickle file to '{metadata_filename}' in bucket '{bucket}'.")
-    except S3Error as err:
-        print(f"Error uploading processed metadata pickle file: {err}")
-        raise
 
 def plot_1(skin_meta: pd.DataFrame):
     sns.set_style('darkgrid', {"grid.color": ".8", "grid.linestyle": ":"})
@@ -213,12 +159,12 @@ def lesion_type(row):
         return 1  # malignant
 
 def create_balanced_dataset(
-    skin_meta: pd.DataFrame, 
+    metadata: pd.DataFrame, 
     n_samples: int, 
     seed: int =42
 ) -> pd.DataFrame:
-    skin_0 = skin_meta[skin_meta['label'] == 0]
-    skin_1 = skin_meta[skin_meta['label'] == 1]
+    skin_0 = metadata[metadata['label'] == 0]
+    skin_1 = metadata[metadata['label'] == 1]
     
     skin_0_balanced = resample(skin_0, replace=True, n_samples=n_samples, random_state=seed)
     skin_1_balanced = resample(skin_1, replace=True, n_samples=n_samples, random_state=seed)
@@ -229,11 +175,31 @@ def create_balanced_dataset(
 
 def create_segmented_pictures(
     images_array,
-    skin_data: pd.DataFrame,  
-    processed_bucket: str,
+    metadata: pd.DataFrame,  
+    bucket: str,
+    data_path: str,
+    images_dir: str
 ) -> pd.DataFrame:
+    """
+    Process the images in images_array to create segmented images,
+    upload them to a GCS bucket under a given data_path, and update the
+    skin_data DataFrame with the processed images as NumPy arrays.
+    
+    Args:
+        images_array: A list/array of raw images as NumPy arrays.
+        skin_data (pd.DataFrame): DataFrame containing image metadata with an 'image_id' column.
+        bucket (str): The name of the GCS bucket.
+        data_path (str): The folder path in the bucket where segmented images will be stored.
+        
+    Returns:
+        pd.DataFrame: Updated DataFrame with a new column 'segmented_image' containing the processed image arrays.
+    """
     kernel = np.ones((8, 8), np.uint8)
-    skin_data['segmented_image'] = ''
+    metadata['segmented_image'] = ''
+
+    # Initialize the GCS client and get the bucket.
+    storage_client = storage.Client()
+    bucket_obj = storage_client.bucket(bucket)
     
     for i in range(len(images_array)):
         image_np = images_array[i]
@@ -241,26 +207,33 @@ def create_segmented_pictures(
             print(f"Skipping index {i}: image not found.")
             continue
 
+        # Process the image: convert to grayscale, blur, threshold, crop, and invert.
         image_gr = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
         image_blur = cv2.medianBlur(image_gr, 5)
         _, image_result = cv2.threshold(image_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         image_cropped = image_result[60:400, 50:550]
         image_cropped = cv2.bitwise_not(image_cropped)
         
+        # Convert the segmented image to a PIL Image.
         image_segmented = Image.fromarray(image_cropped)
         buffer = BytesIO()
         image_segmented.save(buffer, format="JPEG")
         buffer.seek(0)
 
-        image_id = skin_data['image_id'].iloc[i]
-        object_name = f"segmented/{image_id}.jpg"
+        # Use the image_id from the DataFrame to construct the object name.
+        image_id = metadata['image_id'].iloc[i]
+        object_name = f"{data_path}/{images_dir}/{image_id}.jpg"
+        
         try:
-            file_size = buffer.getbuffer().nbytes
-            minio_client.put_object(processed_bucket, object_name, buffer, file_size, content_type="image/jpeg")
-        except S3Error as err:
+            # Upload the file to the GCS bucket.
+            blob = bucket_obj.blob(object_name)
+            blob.upload_from_file(buffer, content_type="image/jpeg")
+            print(f"Uploaded segmented image to '{object_name}'")
+        except Exception as err:
             print(f"Error uploading segmented image '{object_name}': {err}")
             raise
 
-        skin_data.at[i, 'segmented_image'] = np.array(image_cropped).astype(np.uint8)
+        # Update the DataFrame with the processed image array.
+        metadata.at[i, 'segmented_image'] = image_cropped.astype(np.uint8)
         
-    return skin_data
+    return metadata

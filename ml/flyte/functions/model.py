@@ -6,17 +6,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import math
 
-from minio import Minio
-from minio.error import S3Error
-
-import io
-from io import BytesIO
-
-import mlrun 
-from mlrun.frameworks.tf_keras import apply_mlrun
-from mlrun.artifacts import PlotArtifact
-from mlrun.execution import MLClientCtx
-
 from tensorflow import keras
 
 from sklearn.model_selection import train_test_split
@@ -25,23 +14,27 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from collections import defaultdict
 
+from io import BytesIO
+from google.cloud import storage
+
+import functions.glob as flyte_glob
+
 # for gpu in tf.config.experimental.list_physical_devices("GPU"):
 #     tf.config.experimental.set_memory_growth(gpu, True)
 
-minio_client = Minio(
-    "minio.mlrun.svc.cluster.local:9000",
-    access_key="mlrun",
-    secret_key="mlrun1234",
-    secure=False
-)
-
 def train_random_forest(
-    processed_bucket: str,
-    processed_metadata_filename: str,
+    bucket: str,
+    metadata_filename: str,
+    data_path: str,
     seed=42,
 ):
     
-    data = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
+    data = flyte_glob.get_metadata_file( # type: ignore
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=data_path, 
+        target="pickle"
+    )
     skin_features = data[['perimeter', 'non_zeros', 'circularity',
        'main_assymetry', 'secondary_assymetry', 'r_channel', 'g_channel',
        'b_channel', 'label']]
@@ -71,19 +64,10 @@ def train_random_forest(
     X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.25, random_state=seed)
     
     RF = RandomForest(RandomForestClassifier(random_state=seed), X_train, y_train, X_test, y_test, 'RF')
-    
-    # mlrun.apply_mlrun(model=RF, model_name="random-forest", X_test=x_test, y_test=Y_test)
 
 
 # Random Forest classifier
-def RandomForest(
-    model, 
-    X_train, 
-    y_train, 
-    X_test, 
-    y_test, 
-    title
-):
+def RandomForest(model, X_train, y_train, X_test, y_test, title):
     predictions = defaultdict(list)
 
     model = model
@@ -104,16 +88,16 @@ def RandomForest(
 
 
 def train_cnn(
-    context: MLClientCtx,
-    processed_bucket: str, 
-    processed_metadata_filename: str,
+    bucket: str, 
+    metadata_filename: str,
+    data_path: str,
     sample: int,
     batch_size: int,
     epochs: int,
 ):
     # Get the datasets:
     training_set, validation_set = _get_datasets(
-        processed_bucket, processed_metadata_filename, 0.2, sample, batch_size
+        bucket, metadata_filename, data_path, 0.2, sample, batch_size
     )
     
     # Compute steps_per_epoch based on the number of training samples.
@@ -126,9 +110,6 @@ def train_cnn(
     optimizer = keras.optimizers.Adam(learning_rate=1e-4)
     optimizer.lr = optimizer.learning_rate
     
-    # Apply MLRun's interface for tf.keras
-    # apply_mlrun(model=model, model_name="skin_cancer_detection", context=context)
-    
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
     
     history = model.fit(
@@ -137,10 +118,6 @@ def train_cnn(
         epochs=epochs,
         steps_per_epoch=steps_per_epoch,
     )
-    
-    # context.log_artifact(
-    #     PlotArtifact("Plot loss", body=plot_loss(history)),
-    # )
     
 def _get_model() -> keras.Model: 
     # Load a pre-trained VGG16 model and remove the top layers
@@ -166,8 +143,10 @@ def _get_model() -> keras.Model:
     return model 
     
 def _get_datasets(
-    processed_bucket: str,
-    processed_metadata_filename: str,
+    bucket: str,
+    metadata_filename: str,
+    data_path: str,
+    images_dir: str,
     test_size: float, 
     data_size: int,
     batch_size: str,
@@ -175,12 +154,17 @@ def _get_datasets(
     is_evaluation: bool = False,
 ):
     # Build the dataset going through the classes directories and collecting the images
-    metadata = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
+    metadata = flyte_glob.get_metadata_file(
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=data_path,
+        target="pickle"
+    )
 
     data = metadata[:data_size]
 
     labels = data['label']
-    images = load_images_from_minio(data)
+    images = load_images_from_gcs(dataset=data, bucket=bucket, data_path=data_path, images_dir=images_dir)
     # Check if its an evaluation, if so, use the entire data
     if is_evaluation:
         return images, labels
@@ -206,109 +190,45 @@ def _get_datasets(
         (x_test, y_test),
     )
 
-def evaluate_cnn(
-    context: mlrun.MLClientCtx, 
-    model_path: str, 
-    processed_bucket: str, 
-    processed_metadata_filename: str,
-    batch_size: int,
-):
-    # Get the dataset
-    x, y = _get_datasets(
-        processed_bucket, processed_metadata_filename, 0.2, is_evaluation=True
-    )
-
-    # Apply MLRun's interface for tf.keras and load the model
-    model_handler = mlrun_tf_keras.apply_mlrun(
-        model_path=model_path,
-        context=context,
-    )
-
-    # Evaluate
-    model_handler.model.evaluate(x=x, y=y, batch_size=batch_size)
-
-
-def get_metadata_file(
-    bucket: str, 
-    metadata_filename: str,
-    target: str = "csv",
-) -> pd.DataFrame:
-    """
-    Retrieve the metadata CSV file from the source bucket.
-    """
-    try:
-        # Get the metadata file as an object from the source bucket.
-        response = minio_client.get_object(bucket, metadata_filename)
-        # Read all bytes from the response.
-        data = response.read()
-
-        # Process file based on the target type.
-        if target == "csv":
-            # Convert bytes to a file-like object and decode.
-            df = pd.read_csv(io.StringIO(data.decode('utf-8')))
-        elif target == "pickle":
-            # Use BytesIO to load the pickled DataFrame.
-            df = pd.read_pickle(io.BytesIO(data))
-        else:
-            raise ValueError(f"Unsupported target type: {target}")
-
-        print(f"Retrieved metadata file '{metadata_filename}' from bucket '{bucket}'.")
-        return df
-    except S3Error as err:
-        print(f"Error retrieving metadata file from bucket: {err}")
-        raise
-
-def put_metadata_file(
-    metadata: pd.DataFrame,
-    bucket: str, 
-    metadata_filename: str,
-    target: str = "pickle",
-):
-    pickle_bytes = BytesIO()
-    metadata.to_pickle(pickle_bytes)
-    pickle_bytes.seek(0)
-    pickle_length = pickle_bytes.getbuffer().nbytes
-    
-    try:
-        minio_client.put_object(
-            bucket, 
-            metadata_filename, 
-            pickle_bytes, 
-            pickle_length, 
-            content_type="application/octet-stream"
-        )
-        print(f"Uploaded processed metadata pickle file to '{metadata_filename}' in bucket '{bucket}'.")
-    except S3Error as err:
-        print(f"Error uploading processed metadata pickle file: {err}")
-        raise
-
-def load_images_from_minio(
-    dataset, 
-    bucket_name: str = "processed-data", 
+def load_images_from_gcs(
+    dataset: pd.DataFrame, 
+    bucket: str,
+    data_path: str,
+    images_dir: str,
     target_size=(224, 224),
-):
-    images = []
-    for i in range(len(dataset)):
-        # Retrieve the image_id from the dataset.
-        image_id = dataset.iloc[i]['image_id']
-        # Construct the correct object path.
-        object_path = f"segmented/{image_id}.jpg"
+) -> np.ndarray:
+    """
+    Retrieve images from a GCS bucket (replacing MinIO) and return them as a NumPy array.
+    
+    Args:
+        dataset (pd.DataFrame): DataFrame containing an 'image_id' column.
+        bucket (str): The name of the GCS bucket.
+        data_path (str): The base path in the bucket where images are stored.
+        target_size (tuple): The target size to which each image will be resized.
         
-        # Retrieve the object from Minio using the constructed path.
-        response = minio_client.get_object(bucket_name, object_path)
+    Returns:
+        np.ndarray: A stacked array of all images.
+    """
+    images = []
+    storage_client = storage.Client()
+    bucket_obj = storage_client.bucket(bucket)
+    
+    for i in range(len(dataset)):
+        image_id = dataset.iloc[i]['image_id']
+        # Construct the object path. Here we assume images are stored under "segmented" inside data_path.
+        object_path = f"{data_path}/{images_dir}/{image_id}.jpg"
         try:
-            # Read the image bytes and load into PIL.
-            img_bytes = response.read()
+            blob = bucket_obj.blob(object_path)
+            img_bytes = blob.download_as_bytes()
             img = Image.open(BytesIO(img_bytes)).convert("RGB")
             img = img.resize(target_size)
-            # Convert to numpy array and add to list.
             img_array = np.array(img)
-            img_array = np.expand_dims(img_array, axis=0)   
+            img_array = np.expand_dims(img_array, axis=0)
             images.append(img_array)
-        finally:
-            response.close()
-            response.release_conn()
-    
+        except Exception as err:
+            print(f"Error loading image '{object_path}': {err}")
+            continue
+
     return np.vstack(images)
 
 

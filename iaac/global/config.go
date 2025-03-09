@@ -6,6 +6,8 @@ import (
 
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 func GenerateProjectConfig(
@@ -17,6 +19,8 @@ func GenerateProjectConfig(
 	if whitelistedIPs == "" {
 		whitelistedIPs = "0.0.0.0/0"
 	}
+
+	ValidateMLOpsTarget(ctx)
 
 	return ProjectConfig{
 		ResourceNamePrefix: configureResourcePrefix(ctx),
@@ -139,4 +143,18 @@ func ValidateEmail(
 		return ""
 	}
 	return email
+}
+
+func ValidateMLOpsTarget(
+	ctx *pulumi.Context,
+) {
+
+	target := config.Get(ctx, "project:target")
+	if target != "" {
+		if !listContains(MLOpsAllowedTargets, target) {
+			ctx.Log.Error(fmt.Sprintf("Target MLOps tool is not included in the Allowlist: %s", formatListIntoString(MLOpsAllowedTargets)), nil)
+		}
+		caser := cases.Title(language.English)
+		fmt.Printf("\033[1;32m[INFO] - MLOps tool targeted for deployment; %s\n\033[0m", caser.String(target))
+	}
 }

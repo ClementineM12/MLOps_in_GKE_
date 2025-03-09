@@ -1,25 +1,20 @@
 import cv2
 import numpy as np
-import pandas as pd
-from minio import Minio
-from minio.error import S3Error
-import io
-from io import BytesIO
+import functions.glob as flyte_glob
 
-# Create MinIO client
-minio_client = Minio(
-    "minio.mlrun.svc.cluster.local:9000",
-    access_key="mlrun",
-    secret_key="mlrun1234",
-    secure=False
-)
 
 def feature_engineer(
-    processed_bucket: str,
-    processed_metadata_filename: str,
+    bucket: str,
+    metadata_filename: str,
+    data_path: str
 ):
 
-    dataset = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
+    dataset = flyte_glob.get_metadata_file(
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=data_path, 
+        target="pickle"
+    )
     
     print(f"Example of segmented image array:\n {dataset.iloc[0]['segmented_image']}")
     dataset = calculate_perimeter(dataset)
@@ -28,7 +23,12 @@ def feature_engineer(
     dataset = calculate_assymetry(dataset)
     dataset = split_channels(dataset)
 
-    put_metadata_file(dataset, processed_bucket, processed_metadata_filename)
+    flyte_glob.put_metadata_file(
+        metadata=dataset, 
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=data_path
+    )
     
     
 
@@ -142,58 +142,3 @@ def split_channels(images_array):
         images_array['b_channel'][i]  = blue
         
     return images_array
-
-
-def get_metadata_file(
-    bucket: str, 
-    metadata_filename: str,
-    target: str = "csv",
-) -> pd.DataFrame:
-    """
-    Retrieve the metadata CSV file from the source bucket.
-    """
-    try:
-        # Get the metadata file as an object from the source bucket.
-        response = minio_client.get_object(bucket, metadata_filename)
-        # Read all bytes from the response.
-        data = response.read()
-
-        # Process file based on the target type.
-        if target == "csv":
-            # Convert bytes to a file-like object and decode.
-            df = pd.read_csv(io.StringIO(data.decode('utf-8')))
-        elif target == "pickle":
-            # Use BytesIO to load the pickled DataFrame.
-            df = pd.read_pickle(io.BytesIO(data))
-        else:
-            raise ValueError(f"Unsupported target type: {target}")
-
-        print(f"Retrieved metadata file '{metadata_filename}' from bucket '{bucket}'.")
-        return df
-    except S3Error as err:
-        print(f"Error retrieving metadata file from bucket: {err}")
-        raise
-
-def put_metadata_file(
-    metadata: pd.DataFrame,
-    bucket: str, 
-    metadata_filename: str,
-    target: str = "pickle",
-):
-    pickle_bytes = BytesIO()
-    metadata.to_pickle(pickle_bytes)
-    pickle_bytes.seek(0)
-    pickle_length = pickle_bytes.getbuffer().nbytes
-    
-    try:
-        minio_client.put_object(
-            bucket, 
-            metadata_filename, 
-            pickle_bytes, 
-            pickle_length, 
-            content_type="application/octet-stream"
-        )
-        print(f"Uploaded processed metadata pickle file to '{metadata_filename}' in bucket '{bucket}'.")
-    except S3Error as err:
-        print(f"Error uploading processed metadata pickle file: {err}")
-        raise

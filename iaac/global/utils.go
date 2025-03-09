@@ -22,6 +22,23 @@ func formatRegions(regions []CloudRegion) string {
 	return strings.Join(regionNames, ", ")
 }
 
+func formatListIntoString(values []string) string {
+	var valuesNames []string
+	for _, val := range values {
+		valuesNames = append(valuesNames, val)
+	}
+	return strings.Join(valuesNames, ", ")
+}
+
+func listContains(slice []string, item string) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
 // CheckFileExists checks if a file exists at the given path
 func CheckFileExists(path string) bool {
 	_, err := os.Stat(path)
