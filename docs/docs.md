@@ -97,3 +97,12 @@ How-to guides
 
 > All arguments and attributes (including certificate outputs) will be stored in the raw state as plaintext. [Read more about secrets in state](https://www.pulumi.com/docs/intro/concepts/programming-model/#secrets).
 
+# Github Actions
+
+Retrieve value for **WORKLOAD_IDENTITY_PROVIDER** to set as secret by running: 
+```sh
+  gcloud iam workload-identity-pools providers list \
+    --workload-identity-pool=MY_POOL_ID \
+    --location=global \
+    --project=MY_PROJECT_ID
+```
