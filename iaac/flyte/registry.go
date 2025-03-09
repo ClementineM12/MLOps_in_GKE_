@@ -1,4 +1,4 @@
-package mlrun
+package flyte
 
 import (
 	"encoding/base64"
@@ -26,7 +26,7 @@ func createDockerRegistrySecret(
 	k8sProvider *kubernetes.Provider,
 ) error {
 	// Retrieve the service account info for mlrun.
-	serviceAccount := serviceAccounts["mlrun"]
+	serviceAccount := serviceAccounts["flyteworkers"]
 
 	// Decode the private key using the standard library.
 	decodedPrivateKey := serviceAccount.Key.PrivateKey.ApplyT(func(encoded string) (string, error) {
@@ -65,22 +65,25 @@ func createDockerRegistrySecret(
 		return encodedData, nil
 	}).(pulumi.StringOutput)
 
-	resourceName := fmt.Sprintf("%s-%s-gcr-registry-credentials", projectConfig.ResourceNamePrefix, application)
-	_, err := coreV1.NewSecret(ctx, resourceName, &coreV1.SecretArgs{
-		Metadata: &metaV1.ObjectMetaArgs{
-			Namespace: pulumi.String(namespace),
-			Name:      pulumi.String(registrySecretName),
+	namespaces := createFlyteNamespaces()
+	for _, namespace := range namespaces {
+		resourceName := fmt.Sprintf("%s-%s-gcr-creds", projectConfig.ResourceNamePrefix, namespace)
+		_, err := coreV1.NewSecret(ctx, resourceName, &coreV1.SecretArgs{
+			Metadata: &metaV1.ObjectMetaArgs{
+				Namespace: pulumi.String(namespace),
+				Name:      pulumi.String(registrySecretName),
+			},
+			Type: pulumi.String("kubernetes.io/dockerconfigjson"),
+			Data: pulumi.StringMap{
+				".dockerconfigjson": dockerConfigData,
+			},
 		},
-		Type: pulumi.String("kubernetes.io/dockerconfigjson"),
-		Data: pulumi.StringMap{
-			".dockerconfigjson": dockerConfigData,
-		},
-	},
-		pulumi.Provider(k8sProvider),
-		pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}),
-	)
-	if err != nil {
-		return err
+			pulumi.Provider(k8sProvider),
+			pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}),
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

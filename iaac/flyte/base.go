@@ -40,6 +40,8 @@ func CreateFlyteResources(
 
 	// Assign the CloudSQL configuration.
 	projectConfig.CloudSQL = &cloudSQLConfig
+	registryEndpoint := fmt.Sprintf("%s-docker.pkg.dev", cloudRegion.Region)
+	registryURL := fmt.Sprintf("%s/%s/%s", registryEndpoint, projectConfig.ProjectId, registryName)
 
 	infraComponents := infracomponents.InfraComponents{
 		CertManager:       true,
@@ -58,13 +60,17 @@ func CreateFlyteResources(
 		return err
 	}
 
-	// Create the GCS bucket for object storage.
-	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
-
-	_, err = registry.CreateArtifactRegistry(ctx, projectConfig, artifactRegistryConfig, pulumi.DependsOn([]pulumi.Resource{}))
+	registry, err := registry.CreateArtifactRegistry(ctx, projectConfig, artifactRegistryConfig, pulumi.DependsOn([]pulumi.Resource{}))
 	if err != nil {
 		return err
 	}
+	err = createDockerRegistrySecret(ctx, projectConfig, serviceAccounts, registry, registryURL, k8sProvider)
+	if err != nil {
+		return err
+	}
+
+	// Create the GCS bucket for object storage.
+	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
 	// Deploy CloudSQL and obtain its dependencies.
 	cloudSQL, cloudSQLDependencies, err := cloudsql.DeployCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork)
 	if err != nil {

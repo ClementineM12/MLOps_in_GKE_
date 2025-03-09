@@ -66,15 +66,20 @@ def process_metadata(
         lambda img_id: convert_image_into_array(img_id, bucket=bucket, images_dir=images_dir)
     )
 
-    flyte_glob.put_metadata_file(metadata=skin_meta, bucket=bucket, images_dir=images_dir, data_path=processed_data_path)
+    flyte_glob.put_metadata_file(
+        metadata=skin_meta, 
+        bucket=bucket, 
+        metadata_filename=metadata_filename, 
+        data_path=processed_data_path,
+    )
         
     
 def create_segmented_images(
-    bucket: str, 
     metadata_filename: str,
+    bucket: str, 
     processed_data_path: str,
     images_dir: str,
-    n_samples: int, 
+    sample: int, 
 ) -> None:
     metadata = flyte_glob.get_metadata_file(
         bucket=bucket, 
@@ -84,7 +89,7 @@ def create_segmented_images(
     )
     print(f"Skin Image shape: {metadata['image'][0].shape}")
     
-    balanced_data = create_balanced_dataset(metadata=metadata, n_samples=n_samples)
+    balanced_data = create_balanced_dataset(metadata=metadata, sample=sample)
     
     skin_data = create_segmented_pictures(
         images_array=balanced_data['image'], 
@@ -160,14 +165,14 @@ def lesion_type(row):
 
 def create_balanced_dataset(
     metadata: pd.DataFrame, 
-    n_samples: int, 
+    sample: int, 
     seed: int =42
 ) -> pd.DataFrame:
     skin_0 = metadata[metadata['label'] == 0]
     skin_1 = metadata[metadata['label'] == 1]
     
-    skin_0_balanced = resample(skin_0, replace=True, n_samples=n_samples, random_state=seed)
-    skin_1_balanced = resample(skin_1, replace=True, n_samples=n_samples, random_state=seed)
+    skin_0_balanced = resample(skin_0, replace=True, n_samples=sample, random_state=seed)
+    skin_1_balanced = resample(skin_1, replace=True, n_samples=sample, random_state=seed)
     
     skin_data = pd.concat([skin_0_balanced, skin_1_balanced]).reset_index()
 

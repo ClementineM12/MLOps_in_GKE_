@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file first for caching purposes
-COPY requirements.txt .
+COPY . .
 
 # Upgrade pip and install Python dependencies
 RUN pip install --upgrade pip && pip install -r requirements.txt

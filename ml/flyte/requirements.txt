@@ -5,8 +5,8 @@ numpy
 kagglehub
 google-cloud-storage
 Pillow
-matplotlib
+matplotlib==3.5.3
 seaborn
-tensorflow
+tensorflow~=2.16.0
 keras
 scikit-learn

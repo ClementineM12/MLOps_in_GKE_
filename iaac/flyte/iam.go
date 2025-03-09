@@ -16,8 +16,6 @@ func configureSAIAMPolicy(
 	serviceAccounts map[string]iam.ServiceAccountInfo,
 ) error {
 
-	flyteProjects := []string{"flytesnacks"}
-	flyteDomains := []string{"development", "staging", "production"}
 	flyteKSAs := []string{"default"} // The KSA that Task Pods will use
 
 	// Compute the cartesian product (setproduct) to generate worker WI members.

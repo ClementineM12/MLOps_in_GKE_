@@ -8,6 +8,11 @@ import (
 )
 
 var (
+	registrySecretName = "gcr-registry-credentials" // This is used in the values hardscoded so don't change
+
+	flyteProjects = []string{"flytesnacks"}
+	flyteDomains  = []string{"development", "staging", "production"}
+
 	FlyteIAM = map[string]iam.IAM{
 		"flyteadmin": {
 			Permissions: pulumi.StringArray{
@@ -87,6 +92,7 @@ var (
 			CreateServiceAccount: true,
 			RoleBindings:         []string{"roles/artifactregistry.reader"},
 			ResourceNamePrefix:   "flyte",
+			CreateKey:            true,
 		},
 		"artifactregistry-writer": {
 			CreateRole:           false,
