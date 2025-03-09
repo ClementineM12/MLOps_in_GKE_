@@ -21,6 +21,7 @@ func GenerateProjectConfig(
 	}
 
 	ValidateMLOpsTarget(ctx)
+	ValidateConfig(ctx)
 
 	return ProjectConfig{
 		ResourceNamePrefix: configureResourcePrefix(ctx),
@@ -156,5 +157,41 @@ func ValidateMLOpsTarget(
 		}
 		caser := cases.Title(language.English)
 		fmt.Printf("\033[1;32m[INFO] - MLOps tool targeted for deployment; %s\n\033[0m", caser.String(target))
+	}
+}
+
+// ValidateConfig validates configuration values for domain, email, whitelistedIPs, and githubRepo.
+func ValidateConfig(
+	ctx *pulumi.Context,
+) {
+
+	email := config.Get(ctx, "project:email")
+	if email != "" {
+		if !strings.Contains(email, "@") {
+			ctx.Log.Error(fmt.Sprintf("Email format seems incorrect: %s", email), nil)
+		}
+	}
+
+	domain := config.Get(ctx, "project:domain")
+	if domain != "" {
+		if !strings.Contains(domain, ".") {
+			ctx.Log.Error(fmt.Sprintf("Domain format seems incorrect: %s", email), nil)
+		}
+	}
+
+	whitelistedIPs := config.Get(ctx, "project:whitelistedIPs")
+	ipList := strings.Split(whitelistedIPs, ",")
+	for _, ip := range ipList {
+		trimmed := strings.TrimSpace(ip)
+		if !strings.HasSuffix(trimmed, "/32") {
+			ctx.Log.Error(fmt.Sprintf("Whitelist IP '%s' is not in the correct format. Each IP should end with '/32'", trimmed), nil)
+		}
+	}
+
+	githubRepo := config.Get(ctx, "project:githubRepo")
+	if githubRepo != "" {
+		if !strings.Contains(githubRepo, "/") {
+			ctx.Log.Error(fmt.Sprintf("GitHub repo format seems incorrect: %s", githubRepo), nil)
+		}
 	}
 }
