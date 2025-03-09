@@ -26,6 +26,7 @@ The infrastructure includes:
 
 ## Deploy Infrastructure
 
+Create a configuration file for pulumi ( e.g. `Pulumi.development.yaml` )
 First, create and deploy your **IaC resources**:
 
 ```sh

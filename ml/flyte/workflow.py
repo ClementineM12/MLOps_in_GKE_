@@ -99,7 +99,7 @@ def train_random_forest_task() -> None:
         data_path=processed_data_path,
     )
 
-# TASK 5: Train CNN
+# TASK 4: Train CNN
 @task(container_image=base_image_ref, pod_template=getPodTemplate("highcpu"), name="train_cnn")
 def train_cnn_task(sample: int, batch_size: int = 32, epochs: int = 10) -> None:
     model.train_cnn(
