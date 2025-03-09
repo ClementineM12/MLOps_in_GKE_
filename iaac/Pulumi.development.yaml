@@ -7,6 +7,7 @@ config:
   project:domain: <provide_your_domain>
   project:email: <provide_your_email>
   project:whitelistedIPs: "<provide_your_IP>/32"
+  project:githubRepo: <repo_name>
 
   vpc:regions: "007" # <- This is selected in order to have the option of using NodePools with GPU acceleration
   vpc:loadBalancer: false
@@ -16,9 +17,4 @@ config:
 
   gke:managementAutoRepair: true
   gke:managementAutoUpgrade: true
-
-  gke:loggingService: logging.googleapis.com/kubernetes
-  gke:monitoringService: monitoring.googleapis.com/kubernetes
-
-  ar:githubRepo: <repo_name>
   

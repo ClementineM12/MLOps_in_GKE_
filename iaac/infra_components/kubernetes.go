@@ -23,7 +23,7 @@ func configGroup(
 	resources := make(map[string]string)
 
 	if infraComponents.CertManagerIssuer {
-		merge(resources, certManagerIssuerYAML(projectConfig, namespace))
+		merge(resources, certManagerIssuerYAML(ctx, namespace))
 	}
 	if infraComponents.Certificate && infraComponents.Domain != "" {
 		merge(resources, certificateYAML(projectConfig, namespace))
@@ -46,10 +46,10 @@ func configGroup(
 }
 
 func certManagerIssuerYAML(
-	projectConfig global.ProjectConfig,
+	ctx *pulumi.Context,
 	namespace string,
 ) map[string]string {
-
+	email := global.ValidateEmail(ctx)
 	issuerYAML := fmt.Sprintf(`
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -66,7 +66,7 @@ spec:
     - http01:
         ingress:
           ingressClassName: nginx
-`, LetsEncrypt, namespace, projectConfig.Email, LetsEncrypt)
+`, LetsEncrypt, namespace, email, LetsEncrypt)
 
 	return map[string]string{
 		"issuer": issuerYAML,

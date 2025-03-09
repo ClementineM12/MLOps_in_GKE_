@@ -25,7 +25,6 @@ func GenerateProjectConfig(
 		SSL:                configureSSL(ctx, domain),
 		EnabledRegions:     configureRegions(ctx),
 		CloudSQL:           getCloudSQLConfig(ctx),
-		Email:              validateEmail(ctx),
 		WhitelistedIPs:     whitelistedIPs,
 	}
 }
@@ -84,7 +83,7 @@ func ConfigureArtifactRegistry(
 ) ArtifactRegistryConfig {
 
 	if ArtifactRegistryConfig.GithubServiceAccountCreate {
-		githubRepo := config.Get(ctx, "ar:githubRepo")
+		githubRepo := config.Get(ctx, "project:githubRepo")
 		if githubRepo == "" {
 			ctx.Log.Error("Artifact Registry is enabled; provide a GitHub Repository configuration 'ar:githubRepo'.", nil)
 		}
@@ -130,17 +129,14 @@ func getCloudSQLConfig(
 	}
 }
 
-func validateEmail(
+func ValidateEmail(
 	ctx *pulumi.Context,
 ) string {
 
-	if config.Get(ctx, "project:target") != "" {
-		email := config.Get(ctx, "project:email")
-		if email == "" {
-			ctx.Log.Error("Cert manager needs field `project:email` defined.", nil)
-			return email
-		}
-		return email
+	email := config.Get(ctx, "project:email")
+	if email == "" {
+		ctx.Log.Error("Cert manager needs field `project:email` defined.", nil)
+		return ""
 	}
-	return ""
+	return email
 }
