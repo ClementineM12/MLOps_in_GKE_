@@ -51,7 +51,9 @@ jobs:
         env: 
             REGISTRY: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.PROJECT_ID }}
             REPOSITORY: ${{ github.event.inputs.dockerfile }}
+            DOCKERFILE_PATH: ${{ env.DOCKERFILE_PATH }}
+            IMAGE_NAME: 'mlop-base'
             IMAGE_TAG: latest
         run: |-
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG ./${{ env.DOCKERFILE_PATH }} --push
+          docker build -t $REGISTRY/$REPOSITORY/$IMAGE_NAME:$IMAGE_TAG ./$DOCKERFILE_PATH --push
 

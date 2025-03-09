@@ -1,15 +1,5 @@
 import os
-from minio import Minio
-from minio.error import S3Error
-import kagglehub  # Adjust the import as needed if you're using a specific Kaggle module
-
-# Create MinIO client
-minio_client = Minio(
-    "minio.mlrun.svc.cluster.local:9000",
-    access_key="mlrun",
-    secret_key="mlrun1234",
-    secure=False
-)
+import kagglehub
 
 def fetch_dataset(
     metadata_filename: str, 
