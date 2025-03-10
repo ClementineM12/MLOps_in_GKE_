@@ -12,3 +12,4 @@ keras
 scikit-learn
 kubernetes
 flytekitplugins-pod
+minio

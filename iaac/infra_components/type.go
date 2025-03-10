@@ -8,6 +8,7 @@ type InfraComponents struct {
 	Domain            string
 	Ingress           bool
 	IngressMap        map[string]IngressConfig
+	Minio             bool
 }
 
 // IngressPathConfig holds configuration for an individual path rule.

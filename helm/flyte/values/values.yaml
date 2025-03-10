@@ -222,11 +222,13 @@ configmap:
   task_resource_defaults:
     task_resources:
       defaults:
-        cpu: 1000m
-        memory: 1000Mi
-        storage: 1000Mi
-      limits:
+        cpu: 16
+        memory: 32Gi
         storage: 2000Mi
+      limits:
+        cpu: 16
+        memory: 32Gi
+        storage: 4000Mi
 
   # Adds the remoteData config setting
   remoteData:
@@ -325,9 +327,9 @@ cluster_resource_manager:
                 value: *WorkersServiceAccount
         - development:
             - projectQuotaCpu:
-                value: "2"
+                value: "16"
             - projectQuotaMemory:
-                value: "3000Mi"
+                value: "32Gi"
             - gsa:
                 value: *WorkersServiceAccount
 

@@ -35,7 +35,7 @@ func createRegistry(
 		Format:       pulumi.String("DOCKER"), // Artifact Registry supports OCI Helm Charts
 	}, opts...)
 
-	fmt.Printf("\033[1;32m[INFO] - Artifact Registry will be created in: [ %s ]\n\033[0m", region)
+	fmt.Printf("\033[1;32m[INFO] Artifact Registry will be created in: [ %s ]\n\033[0m", region)
 
 	return registry, err
 }
