@@ -50,6 +50,7 @@ func CreateFlyteResources(
 		NginxIngress:      true,
 		Domain:            domain,
 		CertManagerIssuer: true,
+		Minio:             true,
 	}
 	artifactRegistryConfig := global.ArtifactRegistryConfig{
 		RegistryName:               registryName,
@@ -199,7 +200,6 @@ func deployFlyteCore(
 		},
 			pulumi.DependsOn(dependencies),
 			pulumi.Provider(k8sProvider),
-			pulumi.Protect(true),
 		)
 		if err != nil {
 			return err

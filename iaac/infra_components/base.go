@@ -45,9 +45,9 @@ func CreateInfraComponents(
 		}
 		dependencies = append(dependencies, certManagerIssuer)
 	}
-	if infraComponents.Minio {
-		deployMinioHelm(ctx, k8sProvider)
-	}
+	// if infraComponents.Minio {
+	// 	deployMinioHelm(ctx, k8sProvider)
+	// }
 
 	return dependencies, LetsEncrypt, nil
 }

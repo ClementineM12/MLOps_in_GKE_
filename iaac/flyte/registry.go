@@ -79,7 +79,6 @@ func createDockerRegistrySecret(
 		},
 			pulumi.Provider(k8sProvider),
 			pulumi.DependsOn([]pulumi.Resource{serviceAccount.ServiceAccount, registry}),
-			pulumi.Protect(true),
 		)
 		if err != nil {
 			return err
