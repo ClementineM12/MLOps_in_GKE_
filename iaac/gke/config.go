@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	GKEDefaultName = "default"
 	GKEDefaultCIDR = "10.0.0.0/16"
 )
 
@@ -30,7 +31,7 @@ func Configuration(
 
 	// Apply defaults for missing cluster-level values
 	if clusterConfig.Name == "" {
-		clusterConfig.Name = "default"
+		clusterConfig.Name = GKEDefaultName
 	}
 	if clusterConfig.Cidr == "" {
 		clusterConfig.Cidr = GKEDefaultCIDR

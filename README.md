@@ -45,13 +45,21 @@ config:
   vpc:loadBalancer: false # Not configured end-to-end
   vpc.autoNEG: false # Working but not totally configured with the Networking
 
-  gke:privateNodes: true
+  gke:privateNodes: true # If not set it will default to `false`
+  gke:managementAutoRepair: true # If not set it will default to `false`
+  gke:managementAutoUpgrade: true # If not set it will default to `false`
 
-  gke:managementAutoRepair: true
-  gke:managementAutoUpgrade: true
+  # OPTIONAL GKE values -- default
+  gke:name: default
+  gke:cidr: 10.0.0.0/16
+  gke:nodePoolMachineType: e2-standard-4
+  gke:nodePoolDiskSizeGb: 100
+  gke:nodePoolDiskType: pd-standard
+  gke:nodePoolMaxNodeCount: 5
+  gke:nodePoolPreemptible: false
 ```
 
-Upon reading the `docs/docs.md` and have configured what is necessary proceed with building your Infrastructure:
+Upon reading the [Docs](https://github.com/ClementineM12/MLOps_in_GKE_/blob/main/docs/docs.md) and have configured what is necessary proceed with building your Infrastructure:
 ```sh
 cd iaac
 pulumi up
