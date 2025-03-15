@@ -169,6 +169,17 @@ def train(model_type: str, sample: int) -> None:
 # WORKFLOW: Compose the tasks into a single workflow with branching
 @workflow
 def mlops_workflow(model_type: str = "cnn", sample: int = 1000) -> None:
+    """
+    Skin Cancer Image Model Train
+
+    This workflow includes the processing, feature engineering processes of the data and train of targeted Model.
+
+    Args:
+      model_type (str): Target Model
+      sample (int): Image sample number to train upon ( used for the CNN model ).
+
+    Returns: None
+    """
     fetch_dataset = fetch_dataset_task()
     processing = process_task(sample=sample)
     feature_engineering = feature_engineering_task()
@@ -176,6 +187,4 @@ def mlops_workflow(model_type: str = "cnn", sample: int = 1000) -> None:
     # Use the model_type parameter to decide which model to run.
     branch_training = train(model_type=model_type, sample=sample)
 
-    fetch_dataset >> processing
-    processing >> feature_engineering
-    feature_engineering >> branch_training
+    fetch_dataset >> processing >> feature_engineering >> branch_training

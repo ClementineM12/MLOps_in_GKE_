@@ -99,10 +99,16 @@ How-to guides
 
 # Github Actions
 
-Retrieve value for **WORKLOAD_IDENTITY_PROVIDER** to set as secret by running: 
+Run the following to creating the environment variables for your project and Workload Identity Pool IDs:
+```sh 
+export PROJECT_ID=$(gcloud config get-value project)
+export WIP_ID=$(gcloud iam workload-identity-pools list --location=global --filter="displayName='Flyte GitHub'" --format="value(name)" | awk -F'/' '{print $NF}')
+```
+Retrieve value for **WORKLOAD_IDENTITY_PROVIDER** to set as a secret in your GitHub repository: 
 ```sh
-  gcloud iam workload-identity-pools providers list \
-    --workload-identity-pool=MY_POOL_ID \
-    --location=global \
-    --project=MY_PROJECT_ID
+gcloud iam workload-identity-pools providers list \
+  --workload-identity-pool=$WIP_ID \
+  --location=global \
+  --project=$PROJECT_ID \
+  --format="value(name)"
 ```

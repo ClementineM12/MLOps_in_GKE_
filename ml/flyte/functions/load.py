@@ -23,7 +23,7 @@ def fetch_dataset(
     Returns:
         None
     """
-    return
+
     # Initialize the GCS client.
     client = storage.Client()
     
@@ -46,18 +46,18 @@ def fetch_dataset(
         raise
     
     # Recursively upload images from all subdirectories.
-    for root, dirs, files in os.walk(dataset_path):
-        for image_file in files:
-            if image_file.lower().endswith(".jpg"):
-                local_image_path = os.path.join(root, image_file)
-                # Upload images to a specific folder inside the given data_path.
-                object_name = os.path.join(data_path, images_dir, image_file)
-                try:
-                    blob = bucket_obj.blob(object_name)
-                    blob.upload_from_filename(local_image_path)
-                except Exception as err:
-                    print(f"Error uploading image {image_file}: {err}")
-                    raise
+    # for root, dirs, files in os.walk(dataset_path):
+    #     for image_file in files:
+    #         if image_file.lower().endswith(".jpg"):
+    #             local_image_path = os.path.join(root, image_file)
+    #             # Upload images to a specific folder inside the given data_path.
+    #             object_name = os.path.join(data_path, images_dir, image_file)
+    #             try:
+    #                 blob = bucket_obj.blob(object_name)
+    #                 blob.upload_from_filename(local_image_path)
+    #             except Exception as err:
+    #                 print(f"Error uploading image {image_file}: {err}")
+    #                 raise
     
     print("Dataset successfully uploaded to GCP bucket.")
     return

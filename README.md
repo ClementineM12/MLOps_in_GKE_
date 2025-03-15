@@ -1,6 +1,6 @@
 # MLOps Tool Comparison
 
-## 🔹 Prerequisites
+## Prerequisites
 
 Ensure the following tools are installed before running the project:
 
@@ -15,10 +15,9 @@ Ensure the following tools are installed before running the project:
 This repository contains **Infrastructure-as-Code (IaaC)** definitions using [Pulumi](https://www.pulumi.com/) to manage resources on **Google Cloud Platform (GCP)**.
 
 The infrastructure includes:
-- **GKE Cluster**
-- **VPC Networks**
-- **IAM Roles**
-- **FluxCD for GitOps** -- used only for **Kubeflow**
+- **GKE**
+- **VPC & Networking**
+- **IAM**
 - **GCS**
 - **CloudSQL** -- Postgres
 
