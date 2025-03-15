@@ -64,6 +64,7 @@ def train_random_forest(
     X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.25, random_state=seed)
     
     RF = RandomForest(RandomForestClassifier(random_state=seed), X_train, y_train, X_test, y_test, 'RF')
+    return
 
 
 # Random Forest classifier
@@ -118,6 +119,7 @@ def train_cnn(
         epochs=epochs,
         steps_per_epoch=steps_per_epoch,
     )
+    return
     
 def _get_model() -> keras.Model: 
     # Load a pre-trained VGG16 model and remove the top layers

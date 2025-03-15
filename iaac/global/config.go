@@ -22,13 +22,12 @@ func GenerateProjectConfig(
 
 	ValidateMLOpsTarget(ctx)
 	ValidateConfig(ctx)
-
 	return ProjectConfig{
 		ResourceNamePrefix: configureResourcePrefix(ctx),
 		ProjectId:          configureProjectId(ctx),
 		Domain:             domain,
 		SSL:                configureSSL(ctx, domain),
-		EnabledRegions:     configureRegions(ctx),
+		EnabledRegion:      configureRegion(ctx),
 		CloudSQL:           getCloudSQLConfig(ctx),
 		WhitelistedIPs:     whitelistedIPs,
 	}
@@ -98,28 +97,25 @@ func ConfigureArtifactRegistry(
 }
 
 // configureRegions separates regions into enabled and not enabled
-func configureRegions(
+func configureRegion(
 	ctx *pulumi.Context,
-) []CloudRegion {
+) CloudRegion {
 
-	var enabledRegions []CloudRegion
-
-	enabledRegionIds := strings.Split(config.Get(ctx, "vpc:regions"), ",")
-	for _, regionId := range enabledRegionIds {
-		found := false
-		for _, cloudRegion := range CloudRegions {
-			if cloudRegion.Id == regionId {
-				enabledRegions = append(enabledRegions, cloudRegion)
-				found = true
-			}
-		}
-		if !found {
-			ctx.Log.Warn(fmt.Sprintf("Region ID %s does not exist in predefined Cloud Regions.", regionId), nil)
+	var enabledRegion CloudRegion
+	region := config.Get(ctx, "vpc:region")
+	found := false
+	for _, cloudRegion := range CloudRegions {
+		if cloudRegion.Id == region {
+			enabledRegion = cloudRegion
+			found = true
 		}
 	}
-	fmt.Printf("\033[1;32m[INFO] Processing Cloud Regions: [ %s ]\n\033[0m", formatRegions(enabledRegions))
+	if !found {
+		ctx.Log.Warn(fmt.Sprintf("Region ID %s does not exist in predefined Cloud Region.", region), nil)
+	}
+	fmt.Printf("\033[1;32m[INFO] Processing Cloud Regions: [ %s ]\n\033[0m", enabledRegion.Region)
 
-	return enabledRegions
+	return enabledRegion
 }
 
 func getCloudSQLConfig(

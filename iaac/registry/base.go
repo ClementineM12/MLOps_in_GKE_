@@ -25,7 +25,8 @@ func CreateArtifactRegistry(
 	registry.ID().ApplyT(func(_ string) error {
 		if artifactRegistry.GithubServiceAccountCreate {
 			// Create a Workload Identity Pool
-			wifPool, err := createWorkloadIdentityPool(ctx, projectConfig, artifactRegistry)
+			randomString := global.GenerateRandomString(4)
+			wifPool, err := createWorkloadIdentityPool(ctx, projectConfig, artifactRegistry, randomString)
 			if err != nil {
 				return fmt.Errorf("failed to create Workload Identity Pool: %w", err)
 			}

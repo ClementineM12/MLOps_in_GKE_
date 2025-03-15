@@ -72,6 +72,7 @@ def process_metadata(
         metadata_filename=metadata_filename, 
         data_path=processed_data_path,
     )
+    return
         
     
 def create_segmented_images(

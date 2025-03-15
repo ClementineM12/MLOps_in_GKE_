@@ -33,9 +33,10 @@ func CreateVPCResources(
 func CreateVPCSubnetResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	region global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 ) (*compute.Subnetwork, error) {
+	region := projectConfig.EnabledRegion
+
 	gcpSubnetwork, err := createVPCSubnet(ctx, projectConfig, region, gcpNetwork)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subnetwork: %w", err)

@@ -15,12 +15,7 @@ func CreateObjectStorage(
 	bucketName string,
 ) *storage.Bucket {
 
-	var bucketLocation string
-	if len(projectConfig.EnabledRegions) > 1 {
-		bucketLocation = "EU"
-	} else {
-		bucketLocation = projectConfig.EnabledRegions[0].Region
-	}
+	bucketLocation := projectConfig.EnabledRegion.Region
 
 	resourceName := fmt.Sprintf("%s-data-bucket", projectConfig.ResourceNamePrefix)
 	if bucketName == "" {

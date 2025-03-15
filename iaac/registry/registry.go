@@ -16,12 +16,7 @@ func createRegistry(
 	opts ...pulumi.ResourceOption,
 ) (*artifactregistry.Repository, error) {
 
-	var region string
-	if len(global.CloudRegions) > 1 {
-		region = projectConfig.EnabledRegions[0].Region
-	} else {
-		region = "europe"
-	}
+	region := projectConfig.EnabledRegion.Region
 
 	registryName := ArtifactRegistry.RegistryName
 	if registryName == "" {

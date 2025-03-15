@@ -74,6 +74,11 @@ func createDatabase(
 	return sql.NewDatabase(ctx, resourceName, &sql.DatabaseArgs{
 		Instance: dbInstance.ID(),
 		Name:     pulumi.String(projectConfig.CloudSQL.Database),
+		// The deletion policy for the database. Setting ABANDON allows the resource
+		// to be abandoned rather than deleted. This is useful for Postgres, where databases cannot be
+		// deleted from the API if there are users other than cloudsqlsuperuser with access. Possible
+		// values are: "ABANDON", "DELETE". Defaults to "DELETE".
+		DeletionPolicy: pulumi.String("ABANDON"),
 	})
 }
 
@@ -105,10 +110,10 @@ func createUser(
 		Password: randomPassword.Result,
 	},
 		pulumi.DependsOn([]pulumi.Resource{database, dbInstance}),
-		pulumi.Protect(false),
 	)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return randomPassword, databaseUser, nil
 }

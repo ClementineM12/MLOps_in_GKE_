@@ -16,22 +16,22 @@ import (
 func CreateGKEResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	cloudRegion *global.CloudRegion,
 	gcpNetwork pulumi.StringInput,
 	gcpSubnetwork pulumi.StringInput,
 ) (*kubernetes.Provider, *container.NodePool, error) {
 
+	cloudRegion := projectConfig.EnabledRegion
 	config := Configuration(ctx)
 
 	serviceAccount, err := iam.CreateIAMResources(ctx, projectConfig, AdministrationIAM)
 	if err != nil {
 		return nil, nil, err
 	}
-	gcpGKECluster, k8sProvider, err := createGKE(ctx, config, projectConfig, cloudRegion, gcpNetwork, gcpSubnetwork)
+	gcpGKECluster, k8sProvider, err := createGKE(ctx, projectConfig, &cloudRegion, gcpNetwork, gcpSubnetwork)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE: %w", err)
 	}
-	GKENodePools, err := createGKENodePool(ctx, config, projectConfig, cloudRegion, gcpGKECluster.ID(), serviceAccount)
+	GKENodePools, err := createGKENodePool(ctx, config, projectConfig, &cloudRegion, gcpGKECluster.ID(), serviceAccount)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create GKE Node Pool: %w", err)
 	}

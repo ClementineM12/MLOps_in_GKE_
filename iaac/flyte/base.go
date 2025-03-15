@@ -32,7 +32,6 @@ var (
 func CreateFlyteResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpNetwork *compute.Network,
 ) error {
@@ -40,6 +39,7 @@ func CreateFlyteResources(
 	domain := fmt.Sprintf("%s.%s", application, projectConfig.Domain)
 	var dependencies []pulumi.Resource
 
+	cloudRegion := projectConfig.EnabledRegion
 	// Assign the CloudSQL configuration.
 	projectConfig.CloudSQL = &cloudSQLConfig
 	registryEndpoint := fmt.Sprintf("%s-docker.pkg.dev", cloudRegion.Region)
@@ -76,7 +76,7 @@ func CreateFlyteResources(
 	gcsBucket := storage.CreateObjectStorage(ctx, projectConfig, bucketName)
 	// storage.CreateObjectStorage(ctx, projectConfig, "flyte-data-01")
 	// Deploy CloudSQL and obtain its dependencies.
-	cloudSQL, cloudSQLDependencies, err := cloudsql.DeployCloudSQL(ctx, projectConfig, cloudRegion, gcpNetwork)
+	cloudSQL, cloudSQLDependencies, err := cloudsql.DeployCloudSQL(ctx, projectConfig, &cloudRegion, gcpNetwork)
 	if err != nil {
 		return err
 	}
@@ -99,9 +99,6 @@ func CreateFlyteResources(
 		}
 	}
 
-	// Configure the Service Account IAM policy.
-	configureSAIAMPolicy(ctx, projectConfig, serviceAccounts)
-
 	return nil
 }
 
@@ -115,6 +112,7 @@ func deployFlyteCore(
 	letsEncrypt string,
 	dependencies []pulumi.Resource,
 ) error {
+
 	// Wait for all service account emails to resolve.
 	// This ensures we have plain string values for our substitutions.
 	pulumi.All(
@@ -166,7 +164,7 @@ func deployFlyteCore(
 
 		// Deploy the Helm release for Flyte-Core.
 		resourceName := fmt.Sprintf("%s-flyte-core", projectConfig.ResourceNamePrefix)
-		_, err = helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
+		flyteCoreRelease, err := helm.NewRelease(ctx, resourceName, &helm.ReleaseArgs{
 			Name:      pulumi.String(application),
 			Namespace: pulumi.String(namespace),
 			Version:   pulumi.String(helmChartVersion),
@@ -182,28 +180,31 @@ func deployFlyteCore(
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy Flyte-Core Helm chart: %w", err)
 		}
-		return nil, nil
-	})
 
-	for _, namespace := range flyteNamespaces {
-		resourceName := fmt.Sprintf("%s-%s-default-sa-patch", projectConfig.ResourceNamePrefix, namespace)
-		_, err := coreV1.NewServiceAccountPatch(ctx, resourceName, &coreV1.ServiceAccountPatchArgs{
-			Metadata: &metaV1.ObjectMetaPatchArgs{
-				Name:      pulumi.String("default"),
-				Namespace: pulumi.String(namespace),
-			},
-			ImagePullSecrets: coreV1.LocalObjectReferencePatchArray{
-				coreV1.LocalObjectReferencePatchArgs{
-					Name: pulumi.String(registrySecretName),
+		dependencies = []pulumi.Resource{flyteCoreRelease}
+		// Configure the Service Account IAM policy.
+		configureSAIAMPolicy(ctx, projectConfig, serviceAccounts, dependencies)
+		for _, namespace := range flyteNamespaces {
+			resourceName := fmt.Sprintf("%s-%s-default-sa-patch", projectConfig.ResourceNamePrefix, namespace)
+			_, err := coreV1.NewServiceAccountPatch(ctx, resourceName, &coreV1.ServiceAccountPatchArgs{
+				Metadata: &metaV1.ObjectMetaPatchArgs{
+					Name:      pulumi.String("default"),
+					Namespace: pulumi.String(namespace),
+				},
+				ImagePullSecrets: coreV1.LocalObjectReferencePatchArray{
+					coreV1.LocalObjectReferencePatchArgs{
+						Name: pulumi.String(registrySecretName),
+					},
 				},
 			},
-		},
-			pulumi.DependsOn(dependencies),
-			pulumi.Provider(k8sProvider),
-		)
-		if err != nil {
-			return err
+				pulumi.DependsOn(dependencies),
+				pulumi.Provider(k8sProvider),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("failed to patch Flyte service accounts: %w", err)
+			}
 		}
-	}
+		return nil, nil
+	})
 	return nil
 }

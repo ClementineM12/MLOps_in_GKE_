@@ -1,4 +1,4 @@
-from flytekit import task, workflow, dynamic, PodTemplate, Resources
+from flytekit import task, workflow, dynamic, PodTemplate, Resources, conditional
 from kubernetes import client
 
 import functions.load as load
@@ -9,7 +9,7 @@ import functions.model as model
 from typing import Literal
 
 retrieved_metadata_filename = "HAM10000_metadata.csv" 
-bucket_name = "flyte-data-01" 
+bucket_name = "flyte-data-02" 
 data_path = "data"
 processed_data_path = "processed_data"
 metadata_filename = "metadata.pkl"
@@ -97,14 +97,13 @@ def process_task(sample: int) -> None:
         data_path=data_path,
         processed_data_path=processed_data_path
     )
-    process.create_segmented_images(
+    return process.create_segmented_images(
         metadata_filename=metadata_filename,
         bucket=bucket_name,
         images_dir=segmented_images_dir,
         processed_data_path=processed_data_path,
         sample=sample
     )
-    return
 
 # TASK 3: Feature Engineering
 @task(
@@ -115,12 +114,11 @@ def process_task(sample: int) -> None:
     name="feature_engineering",
 )
 def feature_engineering_task() -> None:
-    feature_engineering.feature_engineer(
+   return feature_engineering.feature_engineer(
         bucket=bucket_name,
         metadata_filename=metadata_filename,
         data_path=processed_data_path
     )
-    return
 
 # TASK 4: Train Random Forest
 @task(
@@ -131,7 +129,7 @@ def feature_engineering_task() -> None:
     name="train_random_forest",
 )
 def train_random_forest_task() -> None:
-    model.train_random_forest(
+    return model.train_random_forest(
         bucket=bucket_name,
         metadata_filename=metadata_filename,
         data_path=processed_data_path,
@@ -146,7 +144,7 @@ def train_random_forest_task() -> None:
     name="train_cnn",
 )
 def train_cnn_task(sample: int, batch_size: int = 32, epochs: int = 10) -> None:
-    model.train_cnn(
+    return model.train_cnn(
         bucket=bucket_name,
         metadata_filename=metadata_filename,
         data_path=processed_data_path,
@@ -155,15 +153,18 @@ def train_cnn_task(sample: int, batch_size: int = 32, epochs: int = 10) -> None:
         epochs=epochs,
     )
 
-@dynamic
-def branch_training_task(model_type: str, sample: int) -> None:
+@workflow
+def train(model_type: str, sample: int) -> None:
     # Now, model_type is resolved at runtime and you can use standard if/else.
-    if model_type == "random_forest":
-        train_random_forest_task()
-    elif model_type == "cnn":
-        train_cnn_task(sample=sample)
-    else:
-        raise ValueError(f"Unsupported model_type: {model_type}")
+    return (
+        conditional("train_model")
+        .if_(model_type == "random_forest")
+        .then(train_random_forest_task())
+        .elif_(model_type == "cnn")
+        .then(train_cnn_task(sample=sample))
+        .else_()
+        .fail("The input model_type is not valid.")
+    )
 
 # WORKFLOW: Compose the tasks into a single workflow with branching
 @workflow
@@ -172,8 +173,8 @@ def mlops_workflow(model_type: str = "cnn", sample: int = 1000) -> None:
     processing = process_task(sample=sample)
     feature_engineering = feature_engineering_task()
     
-    # Use the model_type parameter to decide which training task to run.
-    branch_training = branch_training_task(model_type=model_type, sample=sample)
+    # Use the model_type parameter to decide which model to run.
+    branch_training = train(model_type=model_type, sample=sample)
 
     fetch_dataset >> processing
     processing >> feature_engineering

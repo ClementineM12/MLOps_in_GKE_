@@ -30,10 +30,10 @@ var (
 func CreateMLRunResources(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
-	cloudRegion *global.CloudRegion,
 	k8sProvider *kubernetes.Provider,
 	gcpNetwork *compute.Network,
 ) error {
+	cloudRegion := projectConfig.EnabledRegion
 	registryEndpoint := fmt.Sprintf("%s-docker.pkg.dev", cloudRegion.Region)
 	registryURL := fmt.Sprintf("%s/%s/%s", registryEndpoint, projectConfig.ProjectId, registryName)
 	domain := fmt.Sprintf("%s.%s", domainPrefix, projectConfig.Domain)

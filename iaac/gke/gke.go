@@ -22,7 +22,6 @@ var (
 // It returns the created GKE cluster object, which is used by subsequent resources such as node pools and Kubernetes providers.
 func createGKE(
 	ctx *pulumi.Context,
-	ClusterConfig *ClusterConfig,
 	projectConfig global.ProjectConfig,
 	cloudRegion *global.CloudRegion,
 	gcpNetwork pulumi.StringInput,

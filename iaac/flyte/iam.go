@@ -14,6 +14,7 @@ func configureSAIAMPolicy(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	serviceAccounts map[string]iam.ServiceAccountInfo,
+	dependencies []pulumi.Resource,
 ) error {
 
 	flyteKSAs := []string{"default"} // The KSA that Task Pods will use
@@ -58,7 +59,7 @@ func configureSAIAMPolicy(
 	_, err = serviceaccount.NewIAMPolicy(ctx, "flyte-worker-workload-identity", &serviceaccount.IAMPolicyArgs{
 		ServiceAccountId: serviceAccounts["flyteworkers"].ServiceAccount.ID(),
 		PolicyData:       pulumi.String(policyData),
-	})
+	}, pulumi.DependsOn(dependencies))
 	if err != nil {
 		return err
 	}

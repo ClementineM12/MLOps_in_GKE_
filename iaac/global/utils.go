@@ -3,9 +3,11 @@ package global
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"gopkg.in/yaml.v2"
@@ -14,14 +16,6 @@ import (
 var logLevel = "INFO" //  TO DO: set a log Level field
 
 // formatListIntoString is a helper function to format the regions for printing
-func formatRegions(regions []CloudRegion) string {
-	var regionNames []string
-	for _, region := range regions {
-		regionNames = append(regionNames, region.Region)
-	}
-	return strings.Join(regionNames, ", ")
-}
-
 func formatListIntoString(values []string) string {
 	var valuesNames []string
 	for _, val := range values {
@@ -70,7 +64,11 @@ func normalizeYAML(input interface{}) interface{} {
 
 // GetValues reads a YAML file from filePath, verifies its existence, substitutes dynamic placeholders,
 // and returns the resulting data as a pulumi.MapInput.
-func GetValues(filePath string, replacements map[string]interface{}) (pulumi.MapInput, error) {
+func GetValues(
+	filePath string,
+	replacements map[string]interface{},
+) (pulumi.MapInput, error) {
+
 	// Check if the file exists.
 	if !CheckFileExists(filePath) {
 		return nil, fmt.Errorf("file %s does not exist", filePath)
@@ -184,4 +182,17 @@ func printPrettyJSON(data interface{}) {
 	} else {
 		fmt.Println(string(jsonData))
 	}
+}
+
+// GenerateRandomString is a helper function to generate a random string of lowercase letters and numbers
+func GenerateRandomString(
+	length int,
+) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }

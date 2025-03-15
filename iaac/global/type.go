@@ -21,7 +21,7 @@ type ProjectConfig struct {
 	ProjectId          string
 	Domain             string
 	SSL                bool
-	EnabledRegions     []CloudRegion
+	EnabledRegion      CloudRegion
 	Target             string
 	CloudSQL           *CloudSQLConfig
 	Email              string

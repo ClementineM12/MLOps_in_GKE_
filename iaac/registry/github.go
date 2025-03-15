@@ -83,6 +83,7 @@ func createWorkloadIdentityPool(
 	ctx *pulumi.Context,
 	projectConfig global.ProjectConfig,
 	artifactRegistry global.ArtifactRegistryConfig,
+	randomString string,
 ) (*iam.WorkloadIdentityPool, error) {
 
 	formattedName := strings.Title(strings.ReplaceAll(artifactRegistry.RegistryName, "-", " "))
@@ -93,7 +94,7 @@ func createWorkloadIdentityPool(
 		Description:            pulumi.String("Github - Workload Identity Pool"),
 		Disabled:               pulumi.Bool(false),
 		DisplayName:            pulumi.String(fmt.Sprintf("%s GitHub", formattedName)),
-		WorkloadIdentityPoolId: pulumi.String(fmt.Sprintf("%s-%s-github-pool-0", projectConfig.ResourceNamePrefix, artifactRegistry.RegistryName)),
+		WorkloadIdentityPoolId: pulumi.String(fmt.Sprintf("%s-%s-github-pool-%s", projectConfig.ResourceNamePrefix, artifactRegistry.RegistryName, randomString)),
 	})
 	if err != nil {
 		return nil, err

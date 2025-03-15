@@ -23,10 +23,11 @@ def fetch_dataset(
     Returns:
         None
     """
+    return
     # Initialize the GCS client.
     client = storage.Client()
     
-    # Get the bucket.
+    # Get the bucket. BUCKET MUST BE CREATED
     bucket_obj = storage.Bucket(client, bucket)
     # Download the dataset from Kaggle.
     dataset_path = kagglehub.dataset_download("kmader/skin-cancer-mnist-ham10000")
@@ -59,3 +60,4 @@ def fetch_dataset(
                     raise
     
     print("Dataset successfully uploaded to GCP bucket.")
+    return
