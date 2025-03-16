@@ -1,4 +1,5 @@
 # Import necessities
+import argparse
 import numpy as np
 import pandas as pd
 import PIL.Image as Image
@@ -300,3 +301,44 @@ def plot_accuracy(model_fitting):
     plt.ylabel('accuracy')
     plt.legend(loc='upper right')
     plt.show()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train a model")
+    parser.add_argument("--model", choices=["rf", "cnn"], default="rf", help="Model type to train")
+    parser.add_argument("--bucket", type=str, required=True, help="GCS bucket name")
+    parser.add_argument("--metadata_filename", type=str, required=True, help="Metadata filename")
+    parser.add_argument("--data_path", type=str, required=True, help="Data path")
+    # Arguments specific to CNN
+    parser.add_argument("--processed_data_path", type=str, default="", help="Processed data path")
+    parser.add_argument("--images_dir", type=str, default="", help="Images directory")
+    parser.add_argument("--segmented_images_dir", type=str, default="", help="Segmented images directory")
+    parser.add_argument("--sample", type=int, default=400, help="Sample size")
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
+    parser.add_argument("--get_segmented", type=lambda x: x.lower() == "true", default=False, help="Whether to train on the segmented images")
+    # Argument specific to Random Forest
+    parser.add_argument("--seed", type=int, default=42, help="Seed for the random forest model")
+    
+    args = parser.parse_args()
+    
+    if args.model == "cnn":
+        train_cnn(
+            bucket=args.bucket,
+            metadata_filename=args.metadata_filename,
+            images_dir=args.images_dir,
+            segmented_images_dir=args.segmented_images_dir,
+            data_path=args.data_path,
+            processed_data_path=args.processed_data_path,
+            sample=args.sample,
+            batch_size=args.batch_size,
+            epochs=args.epochs,
+            get_segmented=args.get_segmented,
+        )
+    else:
+        train_random_forest(
+            bucket=args.bucket,
+            metadata_filename=args.metadata_filename,
+            data_path=args.data_path,
+            seed=args.seed,
+        )

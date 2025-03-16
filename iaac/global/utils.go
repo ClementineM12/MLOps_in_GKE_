@@ -15,13 +15,24 @@ import (
 
 var logLevel = "INFO" //  TO DO: set a log Level field
 
-// formatListIntoString is a helper function to format the regions for printing
+// formatListIntoString is a helper function to format the list Items into a string
 func formatListIntoString(values []string) string {
 	var valuesNames []string
 	for _, val := range values {
 		valuesNames = append(valuesNames, val)
 	}
 	return strings.Join(valuesNames, ", ")
+}
+
+// formatStringIntoList is a helper function to convert a string into a list
+func FormatStringIntoList(values string) []string {
+	parts := strings.Split(values, ",")
+	var valuesList []string
+	for _, val := range parts {
+		trimmedVal := strings.TrimSpace(val)
+		valuesList = append(valuesList, trimmedVal)
+	}
+	return valuesList
 }
 
 func listContains(slice []string, item string) bool {

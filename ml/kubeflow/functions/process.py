@@ -1,3 +1,4 @@
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -258,3 +259,34 @@ def create_segmented_pictures(
         metadata.at[i, 'segmented_image'] = image_cropped.astype(np.uint8)
         
     return metadata
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process data operations")
+    parser.add_argument("--action", choices=["process_metadata", "create_segmented_images"], required=True,
+                        help="Action to perform")
+    parser.add_argument("--metadata_filename", type=str, required=True, help="Metadata filename")
+    parser.add_argument("--bucket", type=str, required=True, help="Bucket name")
+    parser.add_argument("--images_dir", type=str, default="", help="Images directory")
+    parser.add_argument("--data_path", type=str, default="", help="Data path")
+    parser.add_argument("--processed_data_path", type=str, default="", help="Processed data path")
+    parser.add_argument("--sample", type=int, default=400, help="Sample size")
+    
+    args = parser.parse_args()
+    
+    if args.action == "process_metadata":
+        process_metadata(
+            metadata_filename=args.metadata_filename,
+            bucket=args.bucket,
+            images_dir=args.images_dir,
+            data_path=args.data_path,
+            processed_data_path=args.processed_data_path
+        )
+    elif args.action == "create_segmented_images":
+        create_segmented_images(
+            metadata_filename=args.metadata_filename,
+            bucket=args.bucket,
+            processed_data_path=args.processed_data_path,
+            images_dir=args.images_dir,
+            sample=args.sample
+        )

@@ -1,3 +1,4 @@
+import argparse
 import os
 from google.cloud import storage
 import kagglehub
@@ -61,3 +62,22 @@ def fetch_dataset(
     
     print("Dataset successfully uploaded to GCP bucket.")
     return
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Load data into GCS")
+    parser.add_argument("--retrieved_metadata_filename", type=str, required=True, help="Filename for the retrieved metadata")
+    parser.add_argument("--metadata_filename", type=str, required=True, help="Metadata filename")
+    parser.add_argument("--bucket", type=str, required=True, help="GCS bucket name")
+    parser.add_argument("--images_dir", type=str, required=True, help="Images directory")
+    parser.add_argument("--data_path", type=str, required=True, help="Data path")
+    
+    args = parser.parse_args()
+    
+    fetch_dataset(
+        retrieved_metadata_filename=args.retrieved_metadata_filename,
+        metadata_filename=args.metadata_filename,
+        bucket=args.bucket,
+        images_dir=args.images_dir,
+        data_path=args.data_path
+    )

@@ -19,7 +19,11 @@ def feature_engineer(
     processed_metadata_filename: str,
 ):
 
-    dataset = get_metadata_file(processed_bucket, processed_metadata_filename, "pickle")
+    dataset = get_metadata_file(
+        bucket=processed_bucket, 
+        metadata_filename=processed_metadata_filename, 
+        target="pickle",
+    )
     
     print(f"Example of segmented image array:\n {dataset.iloc[0]['segmented_image']}")
     dataset = calculate_perimeter(dataset)

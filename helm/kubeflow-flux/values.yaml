@@ -3,6 +3,8 @@
 
 # Helm Chart: https://github.com/kubeflow/manifests/tree/v1.9.1
 
+userSettings:
+
 global:
   # The target tag of the Kubeflow manifests
   targetRevision: "v1.9.1"

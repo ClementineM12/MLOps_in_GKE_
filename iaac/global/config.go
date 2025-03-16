@@ -111,9 +111,9 @@ func configureRegion(
 		}
 	}
 	if !found {
-		ctx.Log.Warn(fmt.Sprintf("Region ID %s does not exist in predefined Cloud Region.", region), nil)
+		ctx.Log.Warn(fmt.Sprintf("Region ID %s does not exist in predefined Cloud Regions.", region), nil)
 	}
-	fmt.Printf("\033[1;32m[INFO] Processing Cloud Regions: [ %s ]\n\033[0m", enabledRegion.Region)
+	fmt.Printf("\033[1;32m[INFO] Processing Cloud Region: %s\n\033[0m", enabledRegion.Region)
 
 	return enabledRegion
 }

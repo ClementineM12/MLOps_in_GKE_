@@ -105,9 +105,10 @@ func createUser(
 	// Create the user
 	resourceName = fmt.Sprintf("%s-%s-db-%s-user", projectNamePrefix, databaseInstancePrefix, username)
 	databaseUser, err := sql.NewUser(ctx, resourceName, &sql.UserArgs{
-		Instance: dbInstance.ID(),
-		Name:     pulumi.String(username),
-		Password: randomPassword.Result,
+		Instance:       dbInstance.ID(),
+		Name:           pulumi.String(username),
+		Password:       randomPassword.Result,
+		DeletionPolicy: pulumi.String("ABANDON"),
 	},
 		pulumi.DependsOn([]pulumi.Resource{database, dbInstance}),
 	)

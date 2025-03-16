@@ -1,3 +1,4 @@
+import argparse
 import cv2
 import numpy as np
 import functions.glob as flyte_glob
@@ -153,3 +154,18 @@ def split_channels(images_array):
         images_array['b_channel'][i]  = blue
         
     return images_array
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Feature Engineering for ML Pipeline")
+    parser.add_argument("--bucket", type=str, required=True, help="GCS bucket name")
+    parser.add_argument("--metadata_filename", type=str, required=True, help="Metadata filename")
+    parser.add_argument("--data_path", type=str, required=True, help="Processed data path")
+    
+    args = parser.parse_args()
+    
+    feature_engineer(
+        bucket=args.bucket,
+        metadata_filename=args.metadata_filename,
+        data_path=args.data_path
+    )

@@ -21,8 +21,10 @@ func main() {
 		global.EnableGCPServices(ctx, projectConfig)
 
 		if config.GetBool(ctx, "storage:create") {
-			bucketName := config.Get(ctx, "storage:name")
-			storage.CreateObjectStorage(ctx, projectConfig, bucketName)
+			bucketNames := global.FormatStringIntoList(config.Get(ctx, "storage:bucketNames"))
+			for _, bucketName := range bucketNames {
+				storage.CreateObjectStorage(ctx, projectConfig, bucketName)
+			}
 		}
 
 		if err := CreateProjectResources(ctx, projectConfig); err != nil {

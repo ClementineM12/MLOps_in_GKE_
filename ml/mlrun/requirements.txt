@@ -1,0 +1,11 @@
+kagglehub
+tensorflow~=2.16.0
+minio
+pandas
+matplotlib==3.5.3
+seaborn
+scikit-learn
+opencv-python-headless
+Pillow
+numpy
+kfp

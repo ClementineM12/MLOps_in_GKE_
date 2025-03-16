@@ -1,5 +1,6 @@
 {{- define "app.kubeflow.yaml" -}}
 
+{{ $ctx := .ctx }}
 # Kustomization for Kubeflow component
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -14,20 +15,16 @@ spec:
     name: kubeflow
   path: {{ .path }}
   prune: true
-  timeout: 1m
+  timeout: 3m
   wait: {{ .wait | default true }}
   healthChecks: {{ dig "healthChecks" list . | toYaml | nindent 6 }}
-  {{- if (dig "patches" false . ) }}
-  patches: 
-    {{- range .patches }}
-    - patch: {{ .patch }}
-      target:
-        kind: {{ .kind }}
-        name: {{.name }}
-        namespace: {{ .namespace }}
-      {{- end }}
+  {{- if ( dig "patch" false . ) }}
+  patches:
+    {{- range $patchPath := .patch }}
+    - {{ include "patch.render" (dict "patchPath" $patchPath "ctx" $ctx ) | nindent 6 }}
     {{- end }}
-  {{- if (dig "dependsOn" false . ) }}
+  {{- end }}
+  {{- if ( dig "dependsOn" false . ) }}
   dependsOn:
     {{- range .dependsOn }}
     - name: {{ kebabcase . }}
@@ -36,12 +33,14 @@ spec:
 {{- end }}
 {{- end }}
 
+
 {{- $kubeflowComponents := merge .Values.common .Values.oauth .Values.apps .Values.contrib .Values.certManager .Values.istio -}}
+{{- $ctx := . }}
 {{- $input := dict -}}
 
 {{- range $component, $config := $kubeflowComponents -}}
 {{- if $config.enabled }}
-    {{- $input = dict "component" $component "config" $config -}}
+    {{- $input = dict "component" $component "config" $config "ctx" $ctx -}}
     {{- include "app.kubeflow.yaml" $input | fromYaml | toYaml }}
 {{- end }}
 ---
