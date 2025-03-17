@@ -33,6 +33,7 @@ func DeployFlux(
 		RepositoryOpts: &helm.RepositoryOptsArgs{
 			Repo: pulumi.String(helmChartRepo),
 		},
+		Timeout: pulumi.Int(600),
 		Values: pulumi.Map{
 			"gitRepository": pulumi.Map{
 				"url": pulumi.String(fmt.Sprintf("https://github.com/%s", githubRepo)),
