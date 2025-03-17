@@ -24,7 +24,7 @@ base_image_ref = f"{artifact_registry}/{image_name}:{image_tag}"
 mem_label = {"dedicated": "highmem"}
 cpu_label = {"dedicated": "highcpu"}
 
-is_first_run = False
+is_first_run = True
 
 # Set our project's name:
 project_name = "mlop"

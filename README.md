@@ -25,9 +25,9 @@ The infrastructure includes:
 
 ## Deploy Infrastructure
 
-Create a configuration file for pulumi ( e.g. `Pulumi.development.yaml` )
+Update the configuration file for pulumi ( e.g. `Pulumi.dev.yaml` ) if needed.
 
-First, create and deploy your **IaC resources**:
+**IaaC configuration**
 ```yaml
 config:
   gcp:project: <project_id>

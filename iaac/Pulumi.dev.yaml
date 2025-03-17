@@ -1,0 +1,22 @@
+config:
+  gcp:project: mlops-development-project
+
+  project:prefix: ml
+  project:target: flyte
+
+  project:domain:
+  project:email:
+  project:whitelistedIPs:
+  project:githubRepo:
+
+  vpc:region: "007"
+  vpc:loadBalancer: false
+  vpc.autoNEG: false
+
+  gke:privateNodes: true
+
+  gke:managementAutoRepair: true
+  gke:managementAutoUpgrade: true
+
+  storage:create: true
+  storage:bucketNames: mlop-train-data-01
